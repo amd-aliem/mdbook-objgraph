@@ -333,6 +333,7 @@ pub fn assign_port_sides(
     _deriv_layouts: &[DerivLayout],
 ) -> PortSideAssignment {
     let mut sides = PortSideAssignment::new();
+    let mut same_col_counter: usize = 0;
 
     for (idx, edge) in graph.edges.iter().enumerate() {
         let edge_id = EdgeId(idx as u32);
@@ -390,8 +391,8 @@ pub fn assign_port_sides(
         };
 
         if src_node_id == tgt_node_id {
-            // Self-loop: exit right, enter left.
-            sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
+            // Self-loop: route through right corridor (matching mockup).
+            sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
             sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
         } else {
             let src_cx = src_nl.x + src_nl.width / 2.0;
@@ -404,9 +405,16 @@ pub fn assign_port_sides(
                 sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
                 sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
             } else {
-                // Same center x: use left side for a clean intra-column U-shape.
-                sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
-                sides.insert((edge_id, EndpointRole::Downstream), PortSide::Left);
+                // Same center x: alternate between left and right corridors
+                // to balance corridor occupancy.
+                let side = if same_col_counter % 2 == 0 {
+                    PortSide::Right
+                } else {
+                    PortSide::Left
+                };
+                same_col_counter += 1;
+                sides.insert((edge_id, EndpointRole::Upstream), side);
+                sides.insert((edge_id, EndpointRole::Downstream), side);
             }
         }
     }
@@ -1451,14 +1459,14 @@ mod tests {
         let deriv_layouts: Vec<DerivLayout> = vec![];
         let sides = assign_port_sides(&graph, &node_layouts, &deriv_layouts);
 
-        // Same center x: both Left (intra-column bracket routing).
+        // Same center x: first same-column edge gets Right (alternating).
         assert_eq!(
             sides[&(EdgeId(1), EndpointRole::Upstream)],
-            PortSide::Left
+            PortSide::Right
         );
         assert_eq!(
             sides[&(EdgeId(1), EndpointRole::Downstream)],
-            PortSide::Left
+            PortSide::Right
         );
     }
 
@@ -1522,10 +1530,10 @@ mod tests {
         let deriv_layouts: Vec<DerivLayout> = vec![];
         let sides = assign_port_sides(&graph, &node_layouts, &deriv_layouts);
 
-        // Self-loop: Upstream=Left, Downstream=Right.
+        // Self-loop: both Right (route through right corridor).
         assert_eq!(
             sides[&(EdgeId(0), EndpointRole::Upstream)],
-            PortSide::Left
+            PortSide::Right
         );
         assert_eq!(
             sides[&(EdgeId(0), EndpointRole::Downstream)],

@@ -7,7 +7,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::model::types::{DomainId, Edge, Graph};
 
-use super::{DomainLayout, NodeLayout, CHANNEL_GAP, CORRIDOR_PAD, DOMAIN_PADDING};
+use super::{
+    DomainLayout, NodeLayout, CHANNEL_GAP, CORRIDOR_PAD, DOMAIN_PADDING, DOMAIN_TITLE_HEIGHT,
+    INTER_NODE_GAP,
+};
 
 /// Compute bounding boxes for all domains from final node positions.
 pub fn compute_domain_bounds(graph: &Graph, node_layouts: &[NodeLayout]) -> Vec<DomainLayout> {
@@ -45,15 +48,16 @@ pub fn compute_domain_bounds(graph: &Graph, node_layouts: &[NodeLayout]) -> Vec<
 
             // Left/right padding includes corridor space (CORRIDOR_PAD * 2 = 16px
             // for a single-channel corridor) plus DOMAIN_PADDING.
-            // Top/bottom use DOMAIN_PADDING only.
+            // Top: DOMAIN_TITLE_HEIGHT (32px) for title area (12+8+12).
+            // Bottom: INTER_NODE_GAP (28px) matching inter-node spacing.
             let lr_pad = DOMAIN_PADDING + CORRIDOR_PAD * 2.0;
             Some(DomainLayout {
                 id: domain.id,
                 display_name: domain.display_name.clone(),
                 x: min_x - lr_pad,
-                y: min_y - DOMAIN_PADDING,
+                y: min_y - DOMAIN_TITLE_HEIGHT,
                 width: (max_x - min_x) + 2.0 * lr_pad,
-                height: (max_y - min_y) + 2.0 * DOMAIN_PADDING,
+                height: (max_y - min_y) + DOMAIN_TITLE_HEIGHT + INTER_NODE_GAP,
             })
         })
         .collect()
@@ -673,9 +677,9 @@ mod tests {
         let lr_pad = DOMAIN_PADDING + CORRIDOR_PAD * 2.0;
         let eps = 1e-6;
         assert!((d.x - (100.0 - lr_pad)).abs() < eps);
-        assert!((d.y - (50.0 - DOMAIN_PADDING)).abs() < eps);
+        assert!((d.y - (50.0 - DOMAIN_TITLE_HEIGHT)).abs() < eps);
         assert!((d.width - (80.0 + 2.0 * lr_pad)).abs() < eps);
-        assert!((d.height - (60.0 + 2.0 * DOMAIN_PADDING)).abs() < eps);
+        assert!((d.height - (60.0 + DOMAIN_TITLE_HEIGHT + INTER_NODE_GAP)).abs() < eps);
     }
 
     // Test: Domain bounding box encloses multiple member nodes
@@ -699,9 +703,9 @@ mod tests {
         let lr_pad = DOMAIN_PADDING + CORRIDOR_PAD * 2.0;
         let eps = 1e-6;
         assert!((d.x - (10.0 - lr_pad)).abs() < eps);
-        assert!((d.y - (20.0 - DOMAIN_PADDING)).abs() < eps);
+        assert!((d.y - (20.0 - DOMAIN_TITLE_HEIGHT)).abs() < eps);
         assert!((d.width - (150.0 + 2.0 * lr_pad)).abs() < eps);
-        assert!((d.height - (110.0 + 2.0 * DOMAIN_PADDING)).abs() < eps);
+        assert!((d.height - (110.0 + DOMAIN_TITLE_HEIGHT + INTER_NODE_GAP)).abs() < eps);
     }
 
     // Test: Only domain member nodes are included in bounds
@@ -723,10 +727,10 @@ mod tests {
         let lr_pad = DOMAIN_PADDING + CORRIDOR_PAD * 2.0;
         let eps = 1e-6;
         assert!((d.x - (10.0 - lr_pad)).abs() < eps);
-        assert!((d.y - (20.0 - DOMAIN_PADDING)).abs() < eps);
+        assert!((d.y - (20.0 - DOMAIN_TITLE_HEIGHT)).abs() < eps);
         // max_x = max(10+50, 50+70) = 120, so width = 120-10 + 2*lr_pad
         assert!((d.width - (110.0 + 2.0 * lr_pad)).abs() < eps);
-        // max_y = max(20+40, 100+30) = 130, so height = 130-20 + 2*padding
-        assert!((d.height - (110.0 + 2.0 * DOMAIN_PADDING)).abs() < eps);
+        // max_y = max(20+40, 100+30) = 130, so height = 130-20 + title + gap
+        assert!((d.height - (110.0 + DOMAIN_TITLE_HEIGHT + INTER_NODE_GAP)).abs() < eps);
     }
 }

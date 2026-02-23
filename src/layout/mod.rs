@@ -397,6 +397,83 @@ fn tree_center_nodes(
 }
 
 // ---------------------------------------------------------------------------
+// Derivation repositioning (LAYOUT.md: derivations outside domains)
+// ---------------------------------------------------------------------------
+
+/// Reposition derivations whose inputs span multiple domains (or whose output
+/// goes to a different domain) so they sit below their parent domain with
+/// INTER_NODE_GAP spacing.
+///
+/// Per the design mockup: "When any input or output of a derivation crosses a
+/// domain boundary, the derivation is placed outside all domains."
+fn reposition_cross_domain_derivations(
+    deriv_layouts: &mut [DerivLayout],
+    domain_layouts: &[DomainLayout],
+    graph: &Graph,
+) {
+    for deriv in &graph.derivations {
+        // Collect the domains of all input source nodes.
+        let mut input_domains: Vec<Option<DomainId>> = deriv
+            .inputs
+            .iter()
+            .map(|&pid| graph.nodes[graph.properties[pid.index()].node.index()].domain)
+            .collect();
+        input_domains.dedup();
+
+        // Domain of the output property's node.
+        let output_domain = graph.nodes[graph.properties[deriv.output_prop.index()].node.index()].domain;
+
+        // Check if this derivation crosses a domain boundary.
+        let crosses_boundary = input_domains.len() > 1
+            || input_domains.iter().any(|&d| d != output_domain)
+            || input_domains.iter().any(|d| d.is_none());
+
+        if !crosses_boundary {
+            continue;
+        }
+
+        // Find the maximum domain bottom among all involved domains.
+        let involved_domains: Vec<DomainId> = input_domains
+            .iter()
+            .chain(std::iter::once(&output_domain))
+            .filter_map(|d| *d)
+            .collect();
+
+        let max_domain_bottom = involved_domains
+            .iter()
+            .filter_map(|did| domain_layouts.iter().find(|dl| dl.id == *did))
+            .map(|dl| dl.y + dl.height)
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        if !max_domain_bottom.is_finite() {
+            continue;
+        }
+
+        // Place derivation INTER_NODE_GAP below the highest domain bottom.
+        let dl = &mut deriv_layouts[deriv.id.index()];
+        let target_y = max_domain_bottom + INTER_NODE_GAP;
+        if dl.y < target_y {
+            dl.y = target_y;
+        }
+
+        // Center x on the mean of input source node centers.
+        let mut input_xs: Vec<f64> = Vec::new();
+        for &pid in &deriv.inputs {
+            let node_id = graph.properties[pid.index()].node;
+            if let Some(did) = graph.nodes[node_id.index()].domain {
+                if let Some(dom_dl) = domain_layouts.iter().find(|dl| dl.id == did) {
+                    input_xs.push(dom_dl.x + dom_dl.width / 2.0);
+                }
+            }
+        }
+        if !input_xs.is_empty() {
+            let mean_x: f64 = input_xs.iter().sum::<f64>() / input_xs.len() as f64;
+            dl.x = mean_x - dl.width / 2.0;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main layout entry point
 // ---------------------------------------------------------------------------
 
@@ -412,7 +489,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     crossing::minimize_crossings(&mut layers, &mut long_edges, graph);
 
     // Phase 4: Coordinate assignment (Brandes-Köpf)
-    let (mut node_layouts, deriv_layouts) =
+    let (mut node_layouts, mut deriv_layouts) =
         coordinate::assign_coordinates(&layers, &long_edges, &assignment, graph);
 
     // Phase 4b: Tree centering — re-center each parent over its intra-domain
@@ -428,6 +505,9 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
 
     // Phase 5c: Enforce vertical ordering for cross-domain anchor hierarchy.
     domain::separate_domains_vertically(&mut node_layouts, &mut domain_layouts, graph);
+
+    // Phase 5d: Reposition cross-domain derivations below their parent domain.
+    reposition_cross_domain_derivations(&mut deriv_layouts, &domain_layouts, graph);
 
     // Phase 6a: Port side assignment
     let port_sides = routing::assign_port_sides(graph, &node_layouts, &deriv_layouts);
@@ -501,6 +581,9 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         }
     }
 
+    // Normalize: shift all elements so that the minimum x and y are >= 0.
+    normalize_positions(&mut node_layouts, &mut deriv_layouts, &mut domain_layouts);
+
     // Compute overall dimensions
     let (width, height) = compute_dimensions(&node_layouts, &deriv_layouts, &domain_layouts);
 
@@ -534,6 +617,46 @@ fn is_cross_domain_constraint(graph: &Graph, src_node: NodeId, dst_node: NodeId)
     match (src_domain, dst_domain) {
         (Some(a), Some(b)) => a != b,
         _ => true, // one or both are top-level
+    }
+}
+
+/// Shift all layout elements so that the minimum x and y are >= 0.
+/// This is needed because domain title areas can extend above the first node,
+/// producing negative y coordinates.
+fn normalize_positions(
+    node_layouts: &mut [NodeLayout],
+    deriv_layouts: &mut [DerivLayout],
+    domain_layouts: &mut [DomainLayout],
+) {
+    let min_x = node_layouts
+        .iter()
+        .map(|nl| nl.x)
+        .chain(deriv_layouts.iter().map(|dl| dl.x))
+        .chain(domain_layouts.iter().map(|dl| dl.x))
+        .fold(f64::INFINITY, f64::min);
+    let min_y = node_layouts
+        .iter()
+        .map(|nl| nl.y)
+        .chain(deriv_layouts.iter().map(|dl| dl.y))
+        .chain(domain_layouts.iter().map(|dl| dl.y))
+        .fold(f64::INFINITY, f64::min);
+
+    let shift_x = if min_x.is_finite() && min_x < 0.0 { -min_x } else { 0.0 };
+    let shift_y = if min_y.is_finite() && min_y < 0.0 { -min_y } else { 0.0 };
+
+    if shift_x > 0.0 || shift_y > 0.0 {
+        for nl in node_layouts.iter_mut() {
+            nl.x += shift_x;
+            nl.y += shift_y;
+        }
+        for dl in deriv_layouts.iter_mut() {
+            dl.x += shift_x;
+            dl.y += shift_y;
+        }
+        for dl in domain_layouts.iter_mut() {
+            dl.x += shift_x;
+            dl.y += shift_y;
+        }
     }
 }
 
