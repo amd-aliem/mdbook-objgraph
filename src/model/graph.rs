@@ -89,7 +89,7 @@ impl Builder {
         &mut self,
         ident: &str,
         display_name: Option<String>,
-        is_root: bool,
+        is_anchored: bool,
         is_selected: bool,
         domain: Option<DomainId>,
     ) -> Result<NodeId, ObgraphError> {
@@ -105,7 +105,7 @@ impl Builder {
             display_name,
             properties: Vec::new(),
             domain,
-            is_root,
+            is_anchored,
             is_selected,
         };
         self.nodes.push(node);
@@ -320,7 +320,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
             let node_id = b.alloc_node(
                 &ast_node.ident,
                 ast_node.display_name.clone(),
-                ast_node.is_root,
+                ast_node.is_anchored,
                 ast_node.is_selected,
                 Some(domain_id),
             )?;
@@ -346,7 +346,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
         let node_id = b.alloc_node(
             &ast_node.ident,
             ast_node.display_name.clone(),
-            ast_node.is_root,
+            ast_node.is_anchored,
             ast_node.is_selected,
             None,
         )?;
@@ -434,13 +434,13 @@ mod tests {
         ast_node_root(ident, props, false)
     }
 
-    // Helper to build a minimal AstNode with explicit is_root flag.
+    // Helper to build a minimal AstNode with explicit is_anchored flag.
     // Props are (name, critical, constrained).
-    fn ast_node_root(ident: &str, props: Vec<(&str, bool, bool)>, is_root: bool) -> AstNode {
+    fn ast_node_root(ident: &str, props: Vec<(&str, bool, bool)>, is_anchored: bool) -> AstNode {
         AstNode {
             ident: ident.to_string(),
             display_name: None,
-            is_root,
+            is_anchored,
             is_selected: false,
             properties: props
                 .into_iter()

@@ -172,14 +172,14 @@ fn check_constraint_on_constrained_prop(graph: &Graph) -> Result<(), ObgraphErro
 }
 
 // ---------------------------------------------------------------------------
-// Rule: @root node with incoming anchor edge
+// Rule: @anchored node with incoming anchor edge
 // ---------------------------------------------------------------------------
 
 fn check_root_node_incoming_anchor(graph: &Graph) -> Result<(), ObgraphError> {
     for node in &graph.nodes {
-        if node.is_root && graph.node_parent.contains_key(&node.id) {
+        if node.is_anchored && graph.node_parent.contains_key(&node.id) {
             return Err(ObgraphError::Validation(format!(
-                "node '{}' is annotated @root but appears as the child in an anchor \
+                "node '{}' is annotated @anchored but appears as the child in an anchor \
                  (root nodes must not have a parent)",
                 node.ident
             )));
@@ -189,15 +189,15 @@ fn check_root_node_incoming_anchor(graph: &Graph) -> Result<(), ObgraphError> {
 }
 
 // ---------------------------------------------------------------------------
-// Rule: Non-@root node without incoming anchor (orphan)
+// Rule: Non-@anchored node without incoming anchor (orphan)
 // ---------------------------------------------------------------------------
 
 fn check_non_root_without_incoming_anchor(graph: &Graph) -> Result<(), ObgraphError> {
     for node in &graph.nodes {
-        if !node.is_root && !graph.node_parent.contains_key(&node.id) {
+        if !node.is_anchored && !graph.node_parent.contains_key(&node.id) {
             return Err(ObgraphError::Validation(format!(
-                "node '{}' is not @root but has no incoming anchor \
-                 (orphaned nodes must be annotated @root or connected to a parent)",
+                "node '{}' is not @anchored but has no incoming anchor \
+                 (orphaned nodes must be annotated @anchored or connected to a parent)",
                 node.ident
             )));
         }
@@ -372,7 +372,7 @@ mod tests {
             display_name: None,
             properties: vec![],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         });
         g
@@ -387,7 +387,7 @@ mod tests {
             display_name: None,
             properties: vec![],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         });
         g.nodes.push(Node {
@@ -396,7 +396,7 @@ mod tests {
             display_name: None,
             properties: vec![],
             domain: None,
-            is_root: false,
+            is_anchored: false,
             is_selected: false,
         });
         g.edges.push(Edge::Anchor {
@@ -514,7 +514,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: i == 0,
+                is_anchored: i == 0,
                 is_selected: false,
             });
         }
@@ -731,25 +731,25 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
-    // @root node with incoming anchor
+    // @anchored node with incoming anchor
     // ---------------------------------------------------------------------------
 
     #[test]
     fn root_node_with_incoming_anchor_fails() {
         let mut g = two_node_graph();
         // Make the child a root as well — contradictory.
-        g.nodes[1].is_root = true;
+        g.nodes[1].is_anchored = true;
 
         let err = validate(&g).unwrap_err();
         let msg = err.to_string();
         assert!(
-            msg.contains("@root") && msg.contains("child"),
+            msg.contains("@anchored") && msg.contains("child"),
             "unexpected error: {msg}"
         );
     }
 
     // ---------------------------------------------------------------------------
-    // Non-@root node without incoming anchor (orphan)
+    // Non-@anchored node without incoming anchor (orphan)
     // ---------------------------------------------------------------------------
 
     #[test]
@@ -762,7 +762,7 @@ mod tests {
             display_name: None,
             properties: vec![],
             domain: None,
-            is_root: false,
+            is_anchored: false,
             is_selected: false,
         });
 
@@ -789,7 +789,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: i < 2,
+                is_anchored: i < 2,
                 is_selected: false,
             });
         }
@@ -940,7 +940,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             });
         }
@@ -966,7 +966,7 @@ mod tests {
         let msg = err.to_string();
         // May be cycle or other structural error; cycle detection is key.
         assert!(
-            msg.contains("cycle") || msg.contains("@root"),
+            msg.contains("cycle") || msg.contains("@anchored"),
             "unexpected error: {msg}"
         );
     }
@@ -1084,7 +1084,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: i == 0,
+                is_anchored: i == 0,
                 is_selected: false,
             });
         }

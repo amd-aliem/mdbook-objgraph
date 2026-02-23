@@ -124,7 +124,7 @@ pub struct Node {
     pub display_name: Option<String>,
     pub properties: Vec<PropId>,
     pub domain: Option<DomainId>,
-    pub is_root: bool,
+    pub is_anchored: bool,
     pub is_selected: bool,
 }
 

@@ -751,7 +751,7 @@ mod tests {
             display_name: Some("Root Node".to_string()),
             properties: vec![],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         };
 
@@ -840,7 +840,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: true,
+                is_anchored: true,
                 is_selected: false,
             },
             Node {
@@ -849,7 +849,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(0)],
                 domain: None,
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];
@@ -926,7 +926,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(0)],
                 domain: Some(d0),
-                is_root: true,
+                is_anchored: true,
                 is_selected: false,
             },
             Node {
@@ -935,7 +935,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(1)],
                 domain: Some(d1),
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];
@@ -1076,7 +1076,7 @@ mod tests {
             display_name: None,
             properties: vec![PropId(0)],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         }];
         let properties = vec![Property {
@@ -1211,7 +1211,7 @@ mod tests {
             display_name: None,
             properties: vec![],
             domain: None,
-            is_root: false,
+            is_anchored: false,
             is_selected: false,
         }];
         let graph = make_graph(nodes, vec![], vec![], vec![]);
@@ -1316,7 +1316,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: true,
+                is_anchored: true,
                 is_selected: false,
             },
             Node {
@@ -1325,7 +1325,7 @@ mod tests {
                 display_name: None,
                 properties: vec![],
                 domain: None,
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];
@@ -1390,7 +1390,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(0)],
                 domain: None,
-                is_root: false, // not root, not anchored
+                is_anchored: false, // not root, not anchored
                 is_selected: false,
             },
             Node {
@@ -1399,7 +1399,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(1)],
                 domain: None,
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];
@@ -1498,7 +1498,7 @@ mod tests {
             display_name: Some("A & B <test>".to_string()),
             properties: vec![],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         }];
         let graph = make_graph(nodes, vec![], vec![], vec![]);

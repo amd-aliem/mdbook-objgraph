@@ -48,7 +48,7 @@ impl StateResult {
 pub fn propagate(graph: &Graph) -> StateResult {
     // --- State maps ---
     let mut node_anchored: HashMap<NodeId, bool> =
-        graph.nodes.iter().map(|n| (n.id, n.is_root)).collect();
+        graph.nodes.iter().map(|n| (n.id, n.is_anchored)).collect();
 
     let mut constrained_eff: HashMap<PropId, bool> =
         graph.properties.iter().map(|p| (p.id, p.constrained)).collect();
@@ -283,14 +283,14 @@ mod tests {
     }
 
     /// Convenience: create a Node with no domain.
-    fn node(id: u32, ident: &str, properties: Vec<PropId>, is_root: bool) -> Node {
+    fn node(id: u32, ident: &str, properties: Vec<PropId>, is_anchored: bool) -> Node {
         Node {
             id: NodeId(id),
             ident: ident.to_string(),
             display_name: None,
             properties,
             domain: None,
-            is_root,
+            is_anchored,
             is_selected: false,
         }
     }
@@ -337,7 +337,7 @@ mod tests {
     // -----------------------------------------------------------------------
     // Test 2: chain where state fully propagates.
     //
-    // root (@root) -> child (non-root)
+    // anchored (@anchored) -> child (non-anchored)
     //   root has @constrained property P0
     //   child has @critical property P1, constrained by P0
     // -----------------------------------------------------------------------
@@ -535,10 +535,10 @@ mod tests {
     // Test 6: PKI example from Appendix A.5.
     //
     // Nodes:
-    //   ca        @root       properties: P0(subject.common_name, @constrained),
+    //   ca        @anchored   properties: P0(subject.common_name, @constrained),
     //                                     P1(public_key, @constrained),
     //                                     P2(crl_url, @constrained)
-    //   revocation @root      properties: P11(crl, @constrained)
+    //   revocation @anchored  properties: P11(crl, @constrained)
     //   cert      child of ca properties: P3(issuer.common_name, @critical),
     //                                     P4(signature, @critical),
     //                                     P5(subject.common_name, @constrained),

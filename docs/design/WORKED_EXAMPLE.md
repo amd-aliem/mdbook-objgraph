@@ -18,7 +18,7 @@ should be able to reproduce these results.
 
 ```obgraph
 domain "PKI" {
-  node ca "Certificate Authority" @root @selected {
+  node ca "Certificate Authority" @anchored @selected {
     subject.common_name    @constrained
     subject.org            @constrained
     public_key             @constrained
@@ -41,7 +41,7 @@ domain "Transport" {
   }
 }
 
-node revocation "Revocation List" @root {
+node revocation "Revocation List" @anchored {
   crl                      @constrained
 }
 
@@ -65,7 +65,7 @@ Domains:
   Domain("Transport", members: [tls])
 
 Nodes:
-  ca   display="Certificate Authority"  @root @selected  domain=PKI
+  ca   display="Certificate Authority"  @anchored @selected  domain=PKI
     subject.common_name    @constrained
     subject.org            @constrained
     public_key             @constrained
@@ -82,7 +82,7 @@ Nodes:
     server_cert            @critical
     cipher_suite           (no annotations)
 
-  revocation display="Revocation List"  @root  domain=none
+  revocation display="Revocation List"  @anchored  domain=none
     crl                    @constrained
 
 Anchors:
@@ -171,7 +171,7 @@ Checks performed (all pass for this input):
 3. All node/property references resolve. ✓
 4. No `@constrained` property is a constraint destination. ✓ (P0, P1, P2, P7,
    P11 are only sources)
-5. `@root` nodes (ca, revocation) have no incoming anchors. ✓
+5. `@anchored` nodes (ca, revocation) have no incoming anchors. ✓
 6. No node has multiple incoming anchors. ✓
 7. No nullary derivations. ✓ (no derivations)
 8. Topological sort succeeds → no cycles. ✓
@@ -184,14 +184,14 @@ Checks performed (all pass for this input):
 
 | Element                      | anchored | constrained_eff | Reason             |
 | ---------------------------- | -------- | --------------- | ------------------ |
-| ca (node)                    | true     | —               | @root              |
+| ca (node)                    | true     | —               | @anchored              |
 | P0 (ca::subject.common_name) | —        | true            | @constrained       |
 | P1 (ca::subject.org)         | —        | true            | @constrained       |
 | P2 (ca::public_key)          | —        | true            | @constrained       |
 | P7 (cert::public_key)        | —        | true            | @constrained       |
-| revocation (node)            | true     | —               | @root              |
+| revocation (node)            | true     | —               | @anchored              |
 | P11 (revocation::crl)        | —        | true            | @constrained       |
-| cert, tls (nodes)            | false    | —               | no @root           |
+| cert, tls (nodes)            | false    | —               | no @anchored           |
 | all other properties         | —        | false           | no @constrained    |
 
 `verified(ca)` = true (no @critical props — vacuously true)
@@ -260,9 +260,9 @@ node_worklist empty. **Done.**
 
 | Element           | anchored | constrained_eff | verified | Note                               |
 | ----------------- | -------- | --------------- | -------- | ---------------------------------- |
-| ca                | true     | —               | true     | @root; no critical props           |
+| ca                | true     | —               | true     | @anchored; no critical props           |
 | P0, P1, P2        | —        | true            | —        | @constrained annotation            |
-| revocation        | true     | —               | true     | @root; no critical props           |
+| revocation        | true     | —               | true     | @anchored; no critical props           |
 | P11               | —        | true            | —        | @constrained annotation            |
 | cert              | true     | —               | true     | anchored by ca; P3, P4, P8 all ✓   |
 | P3                | —        | true            | —        | constrained by P0 via E2           |

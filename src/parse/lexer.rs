@@ -11,8 +11,8 @@ pub enum Token {
     KwNode,
     /// `domain` keyword
     KwDomain,
-    /// `@root`
-    AtRoot,
+    /// `@anchored`
+    AtAnchored,
     /// `@selected`
     AtSelected,
     /// `@critical`
@@ -150,7 +150,7 @@ impl<'a> Lexer<'a> {
             name.push(self.advance().unwrap());
         }
         match name.as_str() {
-            "root" => Ok(Token::AtRoot),
+            "anchored" => Ok(Token::AtAnchored),
             "selected" => Ok(Token::AtSelected),
             "critical" => Ok(Token::AtCritical),
             "constrained" => Ok(Token::AtConstrained),
@@ -377,9 +377,9 @@ mod tests {
     }
 
     #[test]
-    fn test_at_root() {
-        let toks = tokenize("@root");
-        assert_eq!(toks[0], Token::AtRoot);
+    fn test_at_anchored() {
+        let toks = tokenize("@anchored");
+        assert_eq!(toks[0], Token::AtAnchored);
     }
 
     #[test]
@@ -562,14 +562,14 @@ mod tests {
 
     #[test]
     fn test_node_declaration_tokens() {
-        let toks = tokenize("node ca \"Certificate Authority\" @root @selected {");
+        let toks = tokenize("node ca \"Certificate Authority\" @anchored @selected {");
         assert_eq!(
             toks,
             vec![
                 Token::KwNode,
                 Token::Ident("ca".into()),
                 Token::StringLit("Certificate Authority".into()),
-                Token::AtRoot,
+                Token::AtAnchored,
                 Token::AtSelected,
                 Token::LBrace,
                 Token::Newline,

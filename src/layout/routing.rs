@@ -1150,7 +1150,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(0)],
                 domain: None,
-                is_root: true,
+                is_anchored: true,
                 is_selected: false,
             },
             Node {
@@ -1159,7 +1159,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(1)],
                 domain: None,
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];
@@ -1471,7 +1471,7 @@ mod tests {
             display_name: None,
             properties: vec![PropId(0), PropId(1)],
             domain: None,
-            is_root: true,
+            is_anchored: true,
             is_selected: false,
         }];
 
@@ -1850,7 +1850,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(0)],
                 domain: Some(DomainId(0)),
-                is_root: true,
+                is_anchored: true,
                 is_selected: false,
             },
             Node {
@@ -1859,7 +1859,7 @@ mod tests {
                 display_name: None,
                 properties: vec![PropId(1)],
                 domain: Some(DomainId(1)),
-                is_root: false,
+                is_anchored: false,
                 is_selected: false,
             },
         ];

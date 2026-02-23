@@ -277,7 +277,7 @@ mod tests {
             display_name: None,
             properties: props.iter().map(|&p| PropId(p)).collect(),
             domain: None,
-            is_root: id == 0,
+            is_anchored: id == 0,
             is_selected: false,
         }
     }

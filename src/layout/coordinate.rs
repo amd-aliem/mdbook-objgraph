@@ -791,7 +791,7 @@ mod tests {
                 display_name: None,
                 properties: prop_ids,
                 domain: None,
-                is_root: i == 0,
+                is_anchored: i == 0,
                 is_selected: false,
             });
         }

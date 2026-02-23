@@ -38,8 +38,8 @@ node <ident> [<display_name>] [@annotation...] {
 - `display_name`: optional quoted string used as the rendered label. If omitted,
   the ident is rendered.
 - Annotations: `@selected` (node's cross-domain constraints are visible by
-  default), `@root` (anchor root — node is anchored by annotation; no parent
-  anchor required). Others may be added in the future.
+  default), `@anchored` (node is anchored by annotation; no parent anchor
+  required). Others may be added in the future.
 
 #### Properties
 
@@ -144,7 +144,7 @@ _           ← [ \t]*                          # horizontal whitespace
 node_decl   ← _ 'node' _ ident _ string_lit? _ (_ node_annot)* _ '{' _ trailing? '\n'
               prop_list
               _ '}' _ trailing? '\n'
-node_annot  ← '@root' / '@selected'
+node_annot  ← '@anchored' / '@selected'
 prop_list   ← (_ prop_decl _ trailing? '\n' / blank_line)*
 prop_decl   ← prop_name _ prop_annot*
 prop_annot  ← '@critical' / '@constrained'
@@ -187,8 +187,8 @@ arg_list    ← source_expr (_ ',' _ source_expr)*
 ```obgraph
 # Domains are visual grouping only
 domain "PKI" {
-  node ca "Certificate Authority" @root @selected {
-    subject.common_name    @constrained  # self-attesting on a root node
+  node ca "Certificate Authority" @anchored @selected {
+    subject.common_name    @constrained  # self-attesting on an anchored node
     subject.org            @constrained
     public_key             @constrained
   }
@@ -210,8 +210,8 @@ domain "Transport" {
   }
 }
 
-node revocation "Revocation List" @root {
-  crl                      @constrained  # self-attesting on a root node
+node revocation "Revocation List" @anchored {
+  crl                      @constrained  # self-attesting on an anchored node
 }
 
 # Anchors (anchoring flows right to left)

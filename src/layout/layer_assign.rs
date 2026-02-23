@@ -890,14 +890,14 @@ mod tests {
         }
     }
 
-    fn make_node(id: u32, ident: &str, props: &[u32], is_root: bool) -> Node {
+    fn make_node(id: u32, ident: &str, props: &[u32], is_anchored: bool) -> Node {
         Node {
             id: NodeId(id),
             ident: ident.to_string(),
             display_name: None,
             properties: props.iter().map(|&p| PropId(p)).collect(),
             domain: None,
-            is_root,
+            is_anchored,
             is_selected: false,
         }
     }

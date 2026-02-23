@@ -26,7 +26,7 @@ pub struct AstDomain {
 pub struct AstNode {
     pub ident: String,
     pub display_name: Option<String>,
-    pub is_root: bool,
+    pub is_anchored: bool,
     pub is_selected: bool,
     pub properties: Vec<AstProperty>,
 }

@@ -288,13 +288,13 @@ impl Parser {
         };
 
         // Zero or more annotations.
-        let mut is_root = false;
+        let mut is_anchored = false;
         let mut is_selected = false;
         loop {
             match self.peek() {
-                Token::AtRoot => {
+                Token::AtAnchored => {
                     self.advance();
-                    is_root = true;
+                    is_anchored = true;
                 }
                 Token::AtSelected => {
                     self.advance();
@@ -318,7 +318,7 @@ impl Parser {
         Ok(AstNode {
             ident,
             display_name,
-            is_root,
+            is_anchored,
             is_selected,
             properties,
         })
@@ -564,7 +564,7 @@ mod tests {
         let n = &g.nodes[0];
         assert_eq!(n.ident, "ca");
         assert_eq!(n.display_name, None);
-        assert!(!n.is_root);
+        assert!(!n.is_anchored);
         assert!(!n.is_selected);
         assert!(n.properties.is_empty());
     }
@@ -577,22 +577,22 @@ mod tests {
 
     #[test]
     fn test_node_root_annotation() {
-        let g = p("node ca @root {\n}\n");
-        assert!(g.nodes[0].is_root);
+        let g = p("node ca @anchored {\n}\n");
+        assert!(g.nodes[0].is_anchored);
         assert!(!g.nodes[0].is_selected);
     }
 
     #[test]
     fn test_node_selected_annotation() {
         let g = p("node ca @selected {\n}\n");
-        assert!(!g.nodes[0].is_root);
+        assert!(!g.nodes[0].is_anchored);
         assert!(g.nodes[0].is_selected);
     }
 
     #[test]
     fn test_node_root_and_selected() {
-        let g = p("node ca @root @selected {\n}\n");
-        assert!(g.nodes[0].is_root);
+        let g = p("node ca @anchored @selected {\n}\n");
+        assert!(g.nodes[0].is_anchored);
         assert!(g.nodes[0].is_selected);
     }
 
@@ -810,7 +810,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     const FULL_EXAMPLE: &str = r#"domain "PKI" {
-  node ca "Certificate Authority" @root @selected {
+  node ca "Certificate Authority" @anchored @selected {
     subject.common_name    @constrained
     subject.org            @constrained
     public_key             @constrained
@@ -833,7 +833,7 @@ domain "Transport" {
   }
 }
 
-node revocation "Revocation List" @root {
+node revocation "Revocation List" @anchored {
   crl                      @constrained
 }
 
@@ -862,7 +862,7 @@ cert::subject.common_name <= revocation::crl : not_in
         let ca = &pki.nodes[0];
         assert_eq!(ca.ident, "ca");
         assert_eq!(ca.display_name, Some("Certificate Authority".into()));
-        assert!(ca.is_root);
+        assert!(ca.is_anchored);
         assert!(ca.is_selected);
         assert_eq!(ca.properties.len(), 3);
         assert_eq!(ca.properties[0].name, "subject.common_name");
@@ -887,7 +887,7 @@ cert::subject.common_name <= revocation::crl : not_in
         assert_eq!(g.nodes.len(), 1);
         let rev = &g.nodes[0];
         assert_eq!(rev.ident, "revocation");
-        assert!(rev.is_root);
+        assert!(rev.is_anchored);
         assert!(!rev.is_selected);
         assert!(!rev.properties[0].critical);
         assert!(rev.properties[0].constrained);

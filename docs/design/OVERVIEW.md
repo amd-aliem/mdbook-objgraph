@@ -71,7 +71,7 @@ The parser and validator reject the following:
 | Reference to nonexistent node           | Constraint or anchor references a node ident that doesn't exist                              |
 | Reference to nonexistent property       | Constraint references a property name that doesn't exist on the specified node               |
 | Constraint on `@constrained` property   | A `@constrained` property has an incoming constraint (redundant — already pre-satisfied)     |
-| `@root` node with incoming anchor       | A node annotated `@root` is the child (left-hand side) of an anchor                          |
+| `@anchored` node with incoming anchor       | A node annotated `@anchored` is the child (left-hand side) of an anchor                          |
 | Multiple incoming anchors               | A node appears as the child in more than one anchor                                          |
 | Nullary derivation                      | A derivation function call with zero arguments                                               |
 | Cycle detected                          | The combined graph of anchors, derivation edges, and constraints contains a cycle            |
@@ -289,7 +289,7 @@ than a general-purpose mutable graph with a sidecar index.
 | Arrowhead design | All 6×6; refX=0; `markerUnits="userSpaceOnUse"` | Uniform size and clearance. Path stops 6px short; arrowhead fills gap. Prevents stroke bleed. Edge types distinguished by color/stroke width. |
 | Anchor edge labels | Operation name rendered as label on edge | Useful visual information showing the integrity method. |
 | Anchor direction | Right-to-left in all statements | Anchors and constraints both flow trust from right to left. |
-| Node anchor annotation | `@root` | Single keyword, distinct from property annotations. Indicates anchor root. |
+| Node anchor annotation | `@anchored` | Single keyword, distinct from property annotations. Node is anchored by annotation. |
 | Property state annotations | `@critical` / `@constrained` | Two independent binary flags. `@critical` gates node verified state; `@constrained` pre-satisfies the constraint slot. |
 | Derivation deduplication | String equality of normalized expressions | Eliminates redundancy without requiring author-side naming. |
 | Syntax: node-property separator | `::` | Frees dot for use in property names without quoting. |

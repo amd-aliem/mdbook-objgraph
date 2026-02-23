@@ -2,7 +2,7 @@
 
 const PKI_EXAMPLE: &str = r#"
 domain "PKI" {
-  node ca "Certificate Authority" @root @selected {
+  node ca "Certificate Authority" @anchored @selected {
     subject.common_name    @constrained
     subject.org            @constrained
     public_key             @constrained
@@ -25,7 +25,7 @@ domain "Transport" {
   }
 }
 
-node revocation "Revocation List" @root {
+node revocation "Revocation List" @anchored {
   crl                      @constrained
 }
 
@@ -52,7 +52,7 @@ fn pki_example_full_pipeline() {
 #[test]
 fn simple_two_node_pipeline() {
     let input = r#"
-node root "Root" @root {
+node root "Root" @anchored {
   value @constrained
 }
 
@@ -74,7 +74,7 @@ child::check <= root::value
 #[test]
 fn single_root_node() {
     let input = r#"
-node solo "Solo Node" @root {
+node solo "Solo Node" @anchored {
   prop_a @constrained
   prop_b @constrained
 }
@@ -85,17 +85,17 @@ node solo "Solo Node" @root {
 
 const SEV_SNP_TPM: &str = r#"
 domain "Verifier" {
-  node System "System Clock" @root {
+  node System "System Clock" @anchored {
     current_time             @constrained
   }
 
-  node Challenge "Attestation Challenge" @root @selected {
+  node Challenge "Attestation Challenge" @anchored @selected {
     nonce                    @constrained
   }
 }
 
 domain "AMD SEV-SNP" {
-  node ARK "AMD Root Key" @root {
+  node ARK "AMD Root Key" @anchored {
     subject                  @constrained
     issuer                   @critical
     public_key               @constrained
@@ -131,19 +131,19 @@ domain "AMD SEV-SNP" {
 }
 
 domain "AMD KDS" {
-  node KDS "Key Distribution Service" @root {
+  node KDS "Key Distribution Service" @anchored {
     supported_tcbs           @constrained
   }
 }
 
 domain "NVD" {
-  node NVD "National Vulnerability Database" @root {
+  node NVD "National Vulnerability Database" @anchored {
     cve_list                 @constrained
   }
 }
 
 domain "TPM" {
-  node MfgCA "Manufacturer CA" @root {
+  node MfgCA "Manufacturer CA" @anchored {
     subject                  @constrained
     issuer                   @critical
     public_key               @constrained

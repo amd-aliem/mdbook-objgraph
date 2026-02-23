@@ -983,7 +983,7 @@ mod tests {
             display_name: None,
             properties: props.into_iter().map(PropId).collect(),
             domain: None,
-            is_root: false,
+            is_anchored: false,
             is_selected: false,
         }
     }

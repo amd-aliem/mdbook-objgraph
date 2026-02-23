@@ -1,7 +1,7 @@
 # SEV-SNP and TPM Attestation
 
 This file models the attestation chain for AMD SEV-SNP and TPM using the
-obgraph syntax. Converted from the old template-based syntax.
+obgraph syntax.
 
 ```obgraph
 # ==========================================================================
@@ -9,12 +9,12 @@ obgraph syntax. Converted from the old template-based syntax.
 # ==========================================================================
 
 domain "Verifier" {
-  node System "System Clock" @root {
-    current_time             @trust(always)
+  node System "System Clock" @anchored {
+    current_time             @constrained
   }
 
-  node Challenge "Attestation Challenge" @root @selected {
-    nonce                    @trust(always)
+  node Challenge "Attestation Challenge" @anchored @selected {
+    nonce                    @constrained
   }
 }
 
@@ -24,17 +24,17 @@ domain "Verifier" {
 
 domain "AMD SEV-SNP" {
   # AMD Root Key — self-signed trust root
-  node ARK "AMD Root Key" @root {
-    subject                  @trust(always)
+  node ARK "AMD Root Key" @anchored {
+    subject                  @constrained
     issuer
-    public_key               @trust(always)
+    public_key               @constrained
     not_before
     not_after
   }
 
   # AMD Signing Key — signed by ARK
   node ASK "AMD Signing Key" {
-    subject                  @trust(constrained)
+    subject                  @critical
     issuer
     public_key
     signature
@@ -44,7 +44,7 @@ domain "AMD SEV-SNP" {
 
   # Versioned Chip Endorsement Key — signed by ASK
   node VCEK "VCEK" {
-    subject                  @trust(constrained)
+    subject                  @critical
     issuer
     public_key
     signature
@@ -67,8 +67,8 @@ domain "AMD SEV-SNP" {
 # ==========================================================================
 
 domain "AMD KDS" {
-  node KDS "Key Distribution Service" @root {
-    supported_tcbs           @trust(always)
+  node KDS "Key Distribution Service" @anchored {
+    supported_tcbs           @constrained
   }
 }
 
@@ -77,8 +77,8 @@ domain "AMD KDS" {
 # ==========================================================================
 
 domain "NVD" {
-  node NVD "National Vulnerability Database" @root {
-    cve_list                 @trust(always)
+  node NVD "National Vulnerability Database" @anchored {
+    cve_list                 @constrained
   }
 }
 
@@ -88,17 +88,17 @@ domain "NVD" {
 
 domain "TPM" {
   # TPM Manufacturer CA — self-signed trust root
-  node MfgCA "Manufacturer CA" @root {
-    subject                  @trust(always)
+  node MfgCA "Manufacturer CA" @anchored {
+    subject                  @constrained
     issuer
-    public_key               @trust(always)
+    public_key               @constrained
     not_before
     not_after
   }
 
   # Endorsement Key — signed by MfgCA
   node EK "Endorsement Key" {
-    subject                  @trust(constrained)
+    subject                  @critical
     issuer
     public_key
     signature
@@ -115,7 +115,7 @@ domain "TPM" {
   node Quote "TPM Quote" {
     nonce
     pcr_digest
-    measurement              @trust(constrained)
+    measurement              @critical
     signature
   }
 
@@ -138,8 +138,8 @@ domain "Guest vTPM" {
 
   # vTPM Endorsement Key — signed by GuestData.public_key
   node vEK "vTPM EK" {
-    subject                  @trust(constrained)
-    issuer                   @trust(constrained)
+    subject                  @critical
+    issuer                   @critical
     public_key
     signature
   }
@@ -153,7 +153,7 @@ domain "Guest vTPM" {
   node vQuote "vTPM Quote" {
     nonce
     pcr_digest
-    measurement              @trust(constrained)
+    measurement              @critical
     signature
   }
 

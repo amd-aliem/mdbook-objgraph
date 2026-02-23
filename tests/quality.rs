@@ -16,7 +16,7 @@ fn run_quality(input: &str) -> quality::QualityReport {
 
 const PKI_EXAMPLE: &str = r#"
 domain "PKI" {
-  node ca "Certificate Authority" @root @selected {
+  node ca "Certificate Authority" @anchored @selected {
     subject.common_name    @constrained
     subject.org            @constrained
     public_key             @constrained
@@ -39,7 +39,7 @@ domain "Transport" {
   }
 }
 
-node revocation "Revocation List" @root {
+node revocation "Revocation List" @anchored {
   crl                      @constrained
 }
 

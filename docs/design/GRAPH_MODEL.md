@@ -15,7 +15,7 @@ The obgraph model consists of six primitives:
 
 | Primitive      | Description                                                                                                                                                                                                                                                                                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Node**       | A recorded subset of properties that an observer captured about some process. When anchored from a parent, the parent is the observer and the child node is what was recorded. Nodes annotated `@root` are anchor roots — they are anchored directly by annotation, with no parent anchor required. Has an identifier and an optional display name.                       |
+| **Node**       | A recorded subset of properties that an observer captured about some process. When anchored from a parent, the parent is the observer and the child node is what was recorded. Nodes annotated `@anchored` are anchored directly by annotation, with no parent anchor required. Has an identifier and an optional display name.                       |
 | **Property**   | A named attribute of a node. Rendered as a row inside the node with ports on left and right sides. Properties have two independent binary state flags: `critical` (set by `@critical` annotation — participates in the node's `verified` computation) and `constrained` (set by `@constrained` annotation or a valid incoming constraint).                                |
 | **Anchor**     | A hierarchical directed edge between two nodes. The parent anchors the child: trust flows right-to-left, with the parent on the right and the child on the left. A valid anchor requires the parent to be both anchored and verified. Carries an optional operation name defining the integrity method for the relationship.                                              |
 | **Constraint** | A binary test between two properties (or derivation outputs). Takes a destination (left-hand side) and a source expression (right-hand side), applies an operation, and returns a boolean indicating compatibility. When true, trust flows from the source to the destination. Carries an optional named operation; when omitted, equality is implied.                    |
@@ -32,12 +32,12 @@ instruct the renderer how to initialise each flag before propagation begins.
 
 | Flag       | Set when                                                                  | Visual indicator (problems-only)           |
 | ---------- | ------------------------------------------------------------------------- | ------------------------------------------ |
-| `anchored` | Node has `@root` annotation, or has a valid incoming anchor               | No indicator when true; red dot when false |
+| `anchored` | Node has `@anchored` annotation, or has a valid incoming anchor               | No indicator when true; red dot when false |
 | `verified` | Every `@critical` property on the node is `constrained`                   | Emergent from property row indicators      |
 
 Every node has an implicit **anchor slot** that behaves exactly like a
 `@critical` property slot: it must be satisfied for the node to be anchored.
-The `@root` annotation satisfies the anchor slot directly — no incoming anchor
+The `@anchored` annotation satisfies the anchor slot directly — no incoming anchor
 is needed — exactly as `@constrained` satisfies a property's constraint slot.
 This makes anchoring unconditionally critical: there is no way to opt a node
 out of requiring an anchor.
@@ -46,7 +46,7 @@ out of requiring an anchor.
 
 | Annotation  | Meaning                                                                           |
 | ----------- | --------------------------------------------------------------------------------- |
-| `@root`     | Satisfies the node's anchor slot directly. The node is anchored without a parent. |
+| `@anchored`     | Satisfies the node's anchor slot directly. The node is anchored without a parent. |
 | `@selected` | The node's cross-domain constraints are visible by default in the rendered graph. |
 
 #### Property State Flags
@@ -72,9 +72,9 @@ neither.
 
 #### State Computation Rules
 
-1. A node with `@root` is **anchored**. Its anchor slot is satisfied by the
+1. A node with `@anchored` is **anchored**. Its anchor slot is satisfied by the
    annotation.
-2. A non-root node is **anchored** only when it has a valid incoming anchor
+2. A non-anchored node becomes **anchored** only when it has a valid incoming anchor
    from a parent that is both anchored and verified. A node has at most one
    incoming anchor (one parent) and may have multiple outgoing anchors.
 3. A node is **verified** when every `@critical` property on it is constrained.
@@ -213,7 +213,7 @@ struct Node {
     display_name: Option<String>,
     properties: Vec<PropId>,       // ordered as declared
     domain: Option<DomainId>,
-    is_root: bool,
+    is_anchored: bool,
     is_selected: bool,
 }
 
@@ -305,7 +305,7 @@ worklist algorithm over two monotone boolean maps: `anchored[node]` and
 function propagate_state(graph) → (anchored: NodeSet, constrained_eff: PropSet):
     // Initialize node anchored flag
     for each node n:
-        anchored[n] = n.is_root
+        anchored[n] = n.is_anchored
 
     // Initialize effective constrained flag (annotation-based only)
     for each property p:
@@ -315,7 +315,7 @@ function propagate_state(graph) → (anchored: NodeSet, constrained_eff: PropSet
     function verified(n):
         return all(constrained_eff[q] for q in n.properties where q.critical)
 
-    node_worklist = { n | anchored[n] }           // root nodes
+    node_worklist = { n | anchored[n] }           // @anchored nodes
     prop_worklist = { p | constrained_eff[p] }    // annotation-constrained props
 
     while node_worklist or prop_worklist is not empty:
