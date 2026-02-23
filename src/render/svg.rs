@@ -3,7 +3,7 @@
 use std::fmt::Write;
 
 use crate::layout::{EdgePath, LayoutResult, HEADER_HEIGHT, ROW_HEIGHT};
-use crate::model::state::TrustState;
+use crate::model::state::StateResult;
 use crate::model::types::Graph;
 
 use super::interactivity;
@@ -14,7 +14,7 @@ use super::style;
 // ---------------------------------------------------------------------------
 
 /// Generate the complete SVG string for a laid-out graph.
-pub fn generate_svg(graph: &Graph, layout: &LayoutResult, trust: &TrustState) -> String {
+pub fn generate_svg(graph: &Graph, layout: &LayoutResult, state: &StateResult) -> String {
     let mut out = String::new();
 
     // Outer wrapper div
@@ -53,7 +53,7 @@ pub fn generate_svg(graph: &Graph, layout: &LayoutResult, trust: &TrustState) ->
     write_derivations(&mut out, graph, layout);
 
     // Layer 3: nodes
-    write_nodes(&mut out, graph, layout, trust);
+    write_nodes(&mut out, graph, layout, state);
 
     // Arrow marker defs
     write_defs(&mut out);
@@ -276,12 +276,12 @@ fn write_derivations(out: &mut String, graph: &Graph, layout: &LayoutResult) {
 // Layer 3: nodes
 // ---------------------------------------------------------------------------
 
-fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, trust: &TrustState) {
+fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &StateResult) {
     writeln!(out, r#"    <g class="obgraph-nodes">"#).unwrap();
 
     for nl in &layout.nodes {
         let node = &graph.nodes[nl.id.index()];
-        let node_trusted = trust.is_node_trusted(nl.id);
+        let node_trusted = state.is_node_verified(graph, nl.id);
         let node_trust_attr = if node_trusted { "trusted" } else { "untrusted" };
         let selected_attr = node.is_selected;
 
@@ -331,7 +331,7 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, trust: &T
         // Property rows
         for (prop_idx, &pid) in node.properties.iter().enumerate() {
             let prop = &graph.properties[pid.index()];
-            let prop_trusted = trust.is_prop_trusted(pid);
+            let prop_trusted = state.is_prop_constrained(pid);
 
             // Trust attribute: "constrained" for @constrained props, else trusted/untrusted
             let trust_attr = if prop.constrained {
@@ -558,7 +558,7 @@ mod tests {
     }
 
     /// Build a minimal single-node, no-property graph and a matching layout.
-    fn minimal_graph_and_layout() -> (Graph, LayoutResult, TrustState) {
+    fn minimal_graph_and_layout() -> (Graph, LayoutResult, StateResult) {
         let node = Node {
             id: NodeId(0),
             ident: "root".to_string(),
@@ -635,7 +635,7 @@ mod tests {
     fn trust_state_data_attributes() {
         // Root node is trusted; its header should carry data-trust="trusted".
         let (graph, layout, trust) = minimal_graph_and_layout();
-        assert!(trust.is_node_trusted(NodeId(0)), "root must be trusted for this test");
+        assert!(trust.is_node_verified(&graph, NodeId(0)), "root must be verified for this test");
 
         let svg = generate_svg(&graph, &layout, &trust);
         assert!(
@@ -682,7 +682,7 @@ mod tests {
         let graph = make_graph(nodes, properties, edges, vec![]);
         let trust_state = state::propagate(&graph);
 
-        assert!(!trust_state.is_node_trusted(NodeId(1)), "child should be untrusted");
+        assert!(!trust_state.is_node_verified(&graph, NodeId(1)), "child should not be verified");
 
         let layout = LayoutResult {
             nodes: vec![

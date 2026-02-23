@@ -1,47 +1,59 @@
-//! Trust propagation — fixed-point worklist algorithm (DESIGN.md §2.6).
+//! State propagation — fixed-point worklist algorithm (GRAPH_MODEL.md §2.6).
 
 use std::collections::{HashMap, VecDeque};
 
 use super::types::{DerivId, Edge, Graph, NodeId, PropId};
 
-/// The result of trust propagation: per-node and per-property trust booleans.
+/// The result of state propagation: per-node anchored status and per-property
+/// constrained status.
 #[derive(Debug, Clone)]
-pub struct TrustState {
-    node_trusted: HashMap<NodeId, bool>,
-    prop_trusted: HashMap<PropId, bool>,
+pub struct StateResult {
+    node_anchored: HashMap<NodeId, bool>,
+    prop_constrained: HashMap<PropId, bool>,
 }
 
-impl TrustState {
-    pub fn is_node_trusted(&self, id: NodeId) -> bool {
-        self.node_trusted.get(&id).copied().unwrap_or(false)
+impl StateResult {
+    pub fn is_node_anchored(&self, id: NodeId) -> bool {
+        self.node_anchored.get(&id).copied().unwrap_or(false)
     }
 
-    pub fn is_prop_trusted(&self, id: PropId) -> bool {
-        self.prop_trusted.get(&id).copied().unwrap_or(false)
+    /// A node is verified when it is anchored AND all its @critical properties
+    /// are constrained.
+    pub fn is_node_verified(&self, graph: &Graph, id: NodeId) -> bool {
+        if !self.is_node_anchored(id) {
+            return false;
+        }
+        let node = &graph.nodes[id.index()];
+        node.properties.iter().all(|&pid| {
+            let prop = &graph.properties[pid.index()];
+            !prop.critical || self.is_prop_constrained(pid)
+        })
+    }
+
+    pub fn is_prop_constrained(&self, id: PropId) -> bool {
+        self.prop_constrained.get(&id).copied().unwrap_or(false)
     }
 }
 
-/// Run the trust propagation algorithm on a validated graph.
+/// Run the state propagation algorithm on a validated graph.
 ///
-/// Returns the trust state for every node and property.
+/// Returns the state result for every node and property.
 ///
-/// Algorithm (DESIGN.md §2.6):
+/// Algorithm (GRAPH_MODEL.md §2.6):
 ///
-/// 1. Initialize root nodes as Trusted, all others as Untrusted.
-/// 2. Initialize Always properties on Trusted nodes as Trusted.
-/// 3. Run a worklist starting from all initially-Trusted properties.
-/// 4. For each property dequeued, propagate trust via Constraint edges and
-///    Derivations, then check whether its node can now become Trusted.
-pub fn propagate(graph: &Graph) -> TrustState {
-    // --- State maps (true = Trusted, false = Untrusted) ---
-    let mut node_trusted: HashMap<NodeId, bool> =
+/// Two worklists (node_worklist and prop_worklist) with an outer loop.
+/// Property phase runs to exhaustion before node phase.
+/// Constraints only fire from anchored+verified nodes.
+/// Node anchoring is separate from node verification.
+pub fn propagate(graph: &Graph) -> StateResult {
+    // --- State maps ---
+    let mut node_anchored: HashMap<NodeId, bool> =
         graph.nodes.iter().map(|n| (n.id, n.is_root)).collect();
 
-    let mut prop_trusted: HashMap<PropId, bool> =
-        graph.properties.iter().map(|p| (p.id, false)).collect();
+    let mut constrained_eff: HashMap<PropId, bool> =
+        graph.properties.iter().map(|p| (p.id, p.constrained)).collect();
 
     // --- Build a reverse index: PropId → Vec<DerivId> ---
-    // Maps each property to every derivation that lists it as an input.
     let mut prop_to_derivs: HashMap<PropId, Vec<DerivId>> = HashMap::new();
     for deriv in &graph.derivations {
         for &inp in &deriv.inputs {
@@ -49,110 +61,139 @@ pub fn propagate(graph: &Graph) -> TrustState {
         }
     }
 
-    // --- Worklist ---
-    let mut worklist: VecDeque<PropId> = VecDeque::new();
+    // --- Helper: check if a node is verified ---
+    let verified = |nid: NodeId,
+                    anchored: &HashMap<NodeId, bool>,
+                    constrained: &HashMap<PropId, bool>|
+     -> bool {
+        if !anchored.get(&nid).copied().unwrap_or(false) {
+            return false;
+        }
+        let node = &graph.nodes[nid.index()];
+        node.properties.iter().all(|&pid| {
+            let prop = &graph.properties[pid.index()];
+            !prop.critical || constrained.get(&pid).copied().unwrap_or(false)
+        })
+    };
 
-    // Initialize @constrained properties on Trusted (root) nodes.
+    // --- Worklists ---
+    let mut node_worklist: VecDeque<NodeId> = VecDeque::new();
+    let mut prop_worklist: VecDeque<PropId> = VecDeque::new();
+
+    // Seed node_worklist with root nodes.
     for node in &graph.nodes {
-        if node_trusted[&node.id] {
-            for &pid in &node.properties {
-                let prop = &graph.properties[pid.index()];
-                if prop.constrained {
-                    *prop_trusted.entry(pid).or_insert(false) = true;
-                    worklist.push_back(pid);
-                }
-            }
+        if node_anchored[&node.id] {
+            node_worklist.push_back(node.id);
         }
     }
 
-    // --- Fixed-point iteration ---
-    while let Some(p) = worklist.pop_front() {
-        // Only process currently-trusted properties.
-        if !prop_trusted[&p] {
-            continue;
+    // Seed prop_worklist with annotation-constrained properties.
+    for prop in &graph.properties {
+        if constrained_eff[&prop.id] {
+            prop_worklist.push_back(prop.id);
         }
+    }
 
-        // 1. Propagate through Constraint edges where p is the source_prop.
-        for &eid in graph.edges_on_prop(p) {
-            if let Edge::Constraint {
-                dest_prop,
-                source_prop,
-                ..
-            } = &graph.edges[eid.index()]
-                && *source_prop == p
-            {
-                // Trust flows from p (source) to dest_prop.
-                let dest_entry = prop_trusted.entry(*dest_prop).or_insert(false);
-                if !*dest_entry {
-                    *dest_entry = true;
-                    worklist.push_back(*dest_prop);
-                }
+    // --- Outer loop: alternate property phase and node phase ---
+    loop {
+        let mut progress = false;
+
+        // --- Property phase: run to exhaustion ---
+        while let Some(p) = prop_worklist.pop_front() {
+            if !constrained_eff[&p] {
+                continue;
             }
-        }
 
-        // 2. Propagate through Derivations where p is an input.
-        if let Some(deriv_ids) = prop_to_derivs.get(&p) {
-            for &did in deriv_ids {
-                let deriv = &graph.derivations[did.index()];
-                // Derivation output is trusted only if ALL inputs are trusted.
-                let all_inputs_trusted = deriv
-                    .inputs
-                    .iter()
-                    .all(|inp| prop_trusted.get(inp).copied().unwrap_or(false));
-                if all_inputs_trusted {
-                    let out = deriv.output_prop;
-                    let out_entry = prop_trusted.entry(out).or_insert(false);
-                    if !*out_entry {
-                        *out_entry = true;
-                        worklist.push_back(out);
+            let prop = &graph.properties[p.index()];
+            let nid = prop.node;
+
+            // Constraints and derivations only fire from anchored+verified nodes.
+            if verified(nid, &node_anchored, &constrained_eff) {
+                // Propagate through Constraint edges where p is the source_prop.
+                for &eid in graph.edges_on_prop(p) {
+                    if let Edge::Constraint {
+                        dest_prop,
+                        source_prop,
+                        ..
+                    } = &graph.edges[eid.index()]
+                    {
+                        if *source_prop == p {
+                            let dest_entry =
+                                constrained_eff.entry(*dest_prop).or_insert(false);
+                            if !*dest_entry {
+                                *dest_entry = true;
+                                prop_worklist.push_back(*dest_prop);
+                                progress = true;
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // 3. Check if p's node should now become Trusted.
-        let prop = &graph.properties[p.index()];
-        let nid = prop.node;
-        if !node_trusted[&nid] {
-            let node = &graph.nodes[nid.index()];
-
-            // Parent condition: root OR has a trusted parent.
-            let parent_ok = node.is_root
-                || graph
-                    .parent_of(nid)
-                    .map(|pid| node_trusted.get(&pid).copied().unwrap_or(false))
-                    .unwrap_or(false);
-
-            if parent_ok {
-                // All @critical properties must be Trusted.
-                let all_critical_trusted = node.properties.iter().all(|&qid| {
-                    let q = &graph.properties[qid.index()];
-                    !q.critical
-                        || prop_trusted.get(&qid).copied().unwrap_or(false)
-                });
-
-                if all_critical_trusted {
-                    *node_trusted.entry(nid).or_insert(false) = true;
-
-                    // Node becoming Trusted unlocks its @constrained properties.
-                    for &qid in &node.properties {
-                        let q = &graph.properties[qid.index()];
-                        if q.constrained {
-                            let q_entry = prop_trusted.entry(qid).or_insert(false);
-                            if !*q_entry {
-                                *q_entry = true;
-                                worklist.push_back(qid);
+                // Propagate through Derivations where p is an input.
+                if let Some(deriv_ids) = prop_to_derivs.get(&p) {
+                    for &did in deriv_ids {
+                        let deriv = &graph.derivations[did.index()];
+                        let all_inputs = deriv.inputs.iter().all(|inp| {
+                            constrained_eff.get(inp).copied().unwrap_or(false)
+                        });
+                        if all_inputs {
+                            let out = deriv.output_prop;
+                            let out_entry =
+                                constrained_eff.entry(out).or_insert(false);
+                            if !*out_entry {
+                                *out_entry = true;
+                                prop_worklist.push_back(out);
+                                progress = true;
                             }
                         }
                     }
                 }
             }
+
+            // Check if newly constrained prop verified its node.
+            if verified(nid, &node_anchored, &constrained_eff) {
+                node_worklist.push_back(nid);
+            }
+        }
+
+        // --- Node phase: run to exhaustion ---
+        while let Some(n) = node_worklist.pop_front() {
+            if !verified(n, &node_anchored, &constrained_eff) {
+                continue;
+            }
+
+            // Anchor children.
+            for &eid in graph.children_of(n) {
+                if let Edge::Anchor { child: m, .. } = &graph.edges[eid.index()] {
+                    let child_entry = node_anchored.entry(*m).or_insert(false);
+                    if !*child_entry {
+                        *child_entry = true;
+                        progress = true;
+
+                        // Push already-constrained props on newly anchored child.
+                        let child_node = &graph.nodes[m.index()];
+                        for &qid in &child_node.properties {
+                            if constrained_eff.get(&qid).copied().unwrap_or(false) {
+                                prop_worklist.push_back(qid);
+                            }
+                        }
+
+                        if verified(*m, &node_anchored, &constrained_eff) {
+                            node_worklist.push_back(*m);
+                        }
+                    }
+                }
+            }
+        }
+
+        if !progress {
+            break;
         }
     }
 
-    TrustState {
-        node_trusted,
-        prop_trusted,
+    StateResult {
+        node_anchored,
+        prop_constrained: constrained_eff,
     }
 }
 
@@ -266,12 +307,12 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Test 1: simple root-only graph — all Always properties are trusted.
+    // Test 1: simple root-only graph — all @constrained properties are constrained.
     // -----------------------------------------------------------------------
 
     #[test]
-    fn root_only_always_props_trusted() {
-        // Graph: one root node with two Always properties and no edges.
+    fn root_only_constrained_props() {
+        // Graph: one root node with two @constrained properties and no edges.
         let nodes = vec![node(0, "root", vec![PropId(0), PropId(1)], true)];
         let properties = vec![
             prop(0, 0, "p0", false, true),
@@ -281,31 +322,28 @@ mod tests {
 
         let state = propagate(&graph);
 
-        assert!(state.is_node_trusted(NodeId(0)), "root should be trusted");
+        assert!(state.is_node_anchored(NodeId(0)), "root should be anchored");
+        assert!(state.is_node_verified(&graph, NodeId(0)), "root should be verified (no critical props)");
         assert!(
-            state.is_prop_trusted(PropId(0)),
-            "Always prop P0 should be trusted"
+            state.is_prop_constrained(PropId(0)),
+            "Constrained prop P0 should be constrained"
         );
         assert!(
-            state.is_prop_trusted(PropId(1)),
-            "Always prop P1 should be trusted"
+            state.is_prop_constrained(PropId(1)),
+            "Constrained prop P1 should be constrained"
         );
     }
 
     // -----------------------------------------------------------------------
-    // Test 2: chain where trust fully propagates.
+    // Test 2: chain where state fully propagates.
     //
     // root (@root) -> child (non-root)
-    //   root has Critical property P0 (Always, so always trusted for root)
-    //   child has Critical property P1, constrained by P0
+    //   root has @constrained property P0
+    //   child has @critical property P1, constrained by P0
     // -----------------------------------------------------------------------
 
     #[test]
     fn chain_full_propagation() {
-        // Node 0: root, has P0 (Always)
-        // Node 1: child of root, has P1 (Critical)
-        // Constraint: P0 -> P1  (P1 gets trust from P0)
-        // Link: node1 <- node0
         let nodes = vec![
             node(0, "root", vec![PropId(0)], true),
             node(1, "child", vec![PropId(1)], false),
@@ -315,13 +353,11 @@ mod tests {
             prop(1, 1, "p1", true, false),
         ];
         let edges = vec![
-            // Link: parent=0, child=1
             Edge::Anchor {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
             },
-            // Constraint: source=P0, dest=P1
             Edge::Constraint {
                 dest_prop: PropId(1),
                 source_prop: PropId(0),
@@ -332,20 +368,22 @@ mod tests {
 
         let state = propagate(&graph);
 
-        assert!(state.is_node_trusted(NodeId(0)), "root should be trusted");
-        assert!(state.is_prop_trusted(PropId(0)), "P0 (Always) should be trusted");
-        assert!(state.is_prop_trusted(PropId(1)), "P1 constrained by trusted P0");
+        assert!(state.is_node_anchored(NodeId(0)), "root should be anchored");
+        assert!(state.is_node_verified(&graph, NodeId(0)), "root verified (no critical props)");
+        assert!(state.is_prop_constrained(PropId(0)), "P0 (@constrained) should be constrained");
+        assert!(state.is_prop_constrained(PropId(1)), "P1 constrained by P0");
+        assert!(state.is_node_anchored(NodeId(1)), "child should be anchored (parent verified)");
         assert!(
-            state.is_node_trusted(NodeId(1)),
-            "child: parent trusted + critical P1 trusted"
+            state.is_node_verified(&graph, NodeId(1)),
+            "child verified: anchored + critical P1 constrained"
         );
     }
 
     // -----------------------------------------------------------------------
-    // Test 3: chain where a missing constraint blocks propagation.
+    // Test 3: chain where a missing constraint blocks verification.
     //
     // root -> child
-    //   child has Critical property P1 with NO incoming constraint.
+    //   child has @critical property P0 with NO incoming constraint.
     // -----------------------------------------------------------------------
 
     #[test]
@@ -364,47 +402,40 @@ mod tests {
 
         let state = propagate(&graph);
 
-        assert!(state.is_node_trusted(NodeId(0)), "root is trusted");
+        assert!(state.is_node_anchored(NodeId(0)), "root is anchored");
+        assert!(state.is_node_verified(&graph, NodeId(0)), "root verified (no critical props)");
+        assert!(state.is_node_anchored(NodeId(1)), "child is anchored (parent verified)");
         assert!(
-            !state.is_prop_trusted(PropId(0)),
-            "P0 has no incoming constraint — untrusted"
+            !state.is_prop_constrained(PropId(0)),
+            "P0 has no incoming constraint — unconstrained"
         );
         assert!(
-            !state.is_node_trusted(NodeId(1)),
-            "child: critical P0 is untrusted — node is untrusted"
+            !state.is_node_verified(&graph, NodeId(1)),
+            "child: critical P0 unconstrained — node not verified"
         );
     }
 
     // -----------------------------------------------------------------------
-    // Test 4: derivation trust — all inputs trusted → output trusted.
+    // Test 4: derivation — all inputs constrained → output constrained.
+    //
+    // root has P0 and P1 (@constrained).
+    // child has P2 (@critical, derivation output).
+    // Derivation D0: inputs=[P0,P1], output=P2.
+    // When P0 and P1 both constrained on verified root → D0 fires → P2
+    // constrained → child verified (P2 is the only critical prop).
     // -----------------------------------------------------------------------
 
     #[test]
-    fn derivation_all_inputs_trusted() {
-        // root has P0 (Always) and P1 (Always).
-        // Derivation D0: inputs=[P0,P1], output=P2 (on child node).
-        // child has P2 (Critical), constrained by D0's output (but here the
-        // derivation output IS P2, simulating a derivation that produces P2).
-        //
-        // Simpler model: derivation output is P2 (an anonymous prop on child).
-        // Constraint: source=P2 (deriv output), dest=P3 (child critical prop).
-        // When P0 and P1 both trusted → D0 fires → P2 trusted → P3 trusted → child trusted.
-
-        // Node 0: root, props [P0, P1]
-        // Node 1: child, props [P2 (output of deriv, Always), P3 (Critical)]
-        // Deriv D0: inputs=[P0,P1], output=P2
-        // Constraint: P2 -> P3
-
+    fn derivation_all_inputs_constrained() {
         let nodes = vec![
             node(0, "root", vec![PropId(0), PropId(1)], true),
-            node(1, "child", vec![PropId(2), PropId(3)], false),
+            node(1, "child", vec![PropId(2)], false),
         ];
         let properties = vec![
             prop(0, 0, "p0", false, true),
             prop(1, 0, "p1", false, true),
-            // P2 is the derivation output — treated as Constrained (gets trust from deriv)
-            prop(2, 1, "p2_deriv_out", false, true),
-            prop(3, 1, "p3", true, false),
+            // P2 is the derivation output — @critical, starts unconstrained
+            prop(2, 1, "p2_deriv_out", true, false),
         ];
         let derivations = vec![Derivation {
             id: DerivId(0),
@@ -416,11 +447,6 @@ mod tests {
             Edge::Anchor {
                 parent: NodeId(0),
                 child: NodeId(1),
-                operation: None,
-            },
-            Edge::Constraint {
-                dest_prop: PropId(3),
-                source_prop: PropId(2),
                 operation: None,
             },
             Edge::DerivInput {
@@ -436,28 +462,28 @@ mod tests {
 
         let state = propagate(&graph);
 
-        assert!(state.is_prop_trusted(PropId(0)), "P0 Always → trusted");
-        assert!(state.is_prop_trusted(PropId(1)), "P1 Always → trusted");
+        assert!(state.is_prop_constrained(PropId(0)), "P0 @constrained → constrained");
+        assert!(state.is_prop_constrained(PropId(1)), "P1 @constrained → constrained");
         assert!(
-            state.is_prop_trusted(PropId(2)),
-            "P2 deriv output: all inputs trusted → trusted"
+            state.is_prop_constrained(PropId(2)),
+            "P2 deriv output: all inputs constrained → constrained"
         );
-        assert!(
-            state.is_prop_trusted(PropId(3)),
-            "P3 constrained by trusted P2 → trusted"
-        );
-        assert!(state.is_node_trusted(NodeId(1)), "child node trusted");
+        assert!(state.is_node_anchored(NodeId(1)), "child anchored (parent verified)");
+        assert!(state.is_node_verified(&graph, NodeId(1)), "child verified (P2 constrained)");
     }
 
     // -----------------------------------------------------------------------
-    // Test 5: derivation trust — one input untrusted → output untrusted.
+    // Test 5: derivation — one input unconstrained → output unconstrained.
     // -----------------------------------------------------------------------
 
     #[test]
-    fn derivation_one_input_untrusted() {
-        // root has P0 (Always) and P1 (Critical, no constraint → untrusted).
+    fn derivation_one_input_unconstrained() {
+        // root has P0 (@constrained) and P1 (@critical, no constraint → unconstrained).
         // Derivation D0: inputs=[P0,P1], output=P2.
-        // Since P1 is untrusted, D0 output stays untrusted.
+        // Since P1 is unconstrained, D0 doesn't fire → P2 stays at its annotation.
+        // But P2 has constrained: true (annotation), so it IS constrained.
+        // The derivation doesn't fire because P1 is not constrained.
+        // However P2's annotation-constrained status is independent.
 
         let nodes = vec![
             node(0, "root", vec![PropId(0), PropId(1)], true),
@@ -466,7 +492,8 @@ mod tests {
         let properties = vec![
             prop(0, 0, "p0", false, true),
             prop(1, 0, "p1", true, false), // no incoming constraint
-            prop(2, 1, "p2_deriv_out", false, true),
+            // P2 has constrained: false to truly test derivation non-firing
+            prop(2, 1, "p2_deriv_out", false, false),
         ];
         let derivations = vec![Derivation {
             id: DerivId(0),
@@ -493,14 +520,14 @@ mod tests {
 
         let state = propagate(&graph);
 
-        assert!(state.is_prop_trusted(PropId(0)), "P0 Always → trusted");
+        assert!(state.is_prop_constrained(PropId(0)), "P0 @constrained → constrained");
         assert!(
-            !state.is_prop_trusted(PropId(1)),
-            "P1 Critical, no constraint → untrusted"
+            !state.is_prop_constrained(PropId(1)),
+            "P1 @critical, no constraint → unconstrained"
         );
         assert!(
-            !state.is_prop_trusted(PropId(2)),
-            "P2 deriv output: P1 untrusted → output untrusted"
+            !state.is_prop_constrained(PropId(2)),
+            "P2 deriv output: P1 unconstrained → derivation doesn't fire"
         );
     }
 
@@ -508,42 +535,40 @@ mod tests {
     // Test 6: PKI example from Appendix A.5.
     //
     // Nodes:
-    //   ca        @root       properties: P0(subject.common_name, Always),
-    //                                     P1(public_key, Always),
-    //                                     P2(crl_url, Always)
-    //   revocation @root      properties: P11(crl, Always)
-    //   cert      child of ca properties: P3(issuer.common_name, Critical),
-    //                                     P4(signature, Critical),
-    //                                     P5(subject.common_name, Always),
-    //                                     P6(not_after, Constrained),
-    //                                     P7(public_key, Critical)
-    //   tls       child of cert properties: P8(server_name, Critical),
-    //                                       P9(not_after, Critical),
-    //                                       P10(cipher_suite, Constrained)
+    //   ca        @root       properties: P0(subject.common_name, @constrained),
+    //                                     P1(public_key, @constrained),
+    //                                     P2(crl_url, @constrained)
+    //   revocation @root      properties: P11(crl, @constrained)
+    //   cert      child of ca properties: P3(issuer.common_name, @critical),
+    //                                     P4(signature, @critical),
+    //                                     P5(subject.common_name, @constrained),
+    //                                     P6(not_after, @constrained),
+    //                                     P7(public_key, @critical, no constraint)
+    //   tls       child of cert properties: P8(server_name, @critical),
+    //                                       P9(not_after, @critical),
+    //                                       P10(cipher_suite, @constrained)
     //
-    // Constraints (trust flows source → dest):
+    // Constraints:
     //   P0  → P3   (ca.subject.common_name constrains cert.issuer.common_name)
     //   P1  → P4   (ca.public_key constrains cert.signature)
     //   P11 → P5   (revocation.crl constrains cert.subject.common_name)
-    //   P2  → P8   (ca.crl_url ... constrains tls.server_name — via some path)
-    //             NOTE: We must route through cert for trust to propagate to tls.
-    //             Since P7 has no constraint, cert stays Untrusted, so tls stays
-    //             Untrusted regardless. We just set P8 constrained by P2.
+    //   P2  → P8   (ca.crl_url constrains tls.server_name)
     //
-    // Expected final state (per Appendix A.5):
-    //   ca        Trusted
-    //   P0,P1,P2  Trusted  (Always on root)
-    //   revocation Trusted
-    //   P11       Trusted  (Always on root)
-    //   cert      Untrusted (P7 has no incoming constraint)
-    //   P3        Trusted  (constrained by P0)
-    //   P4        Trusted  (constrained by P1)
-    //   P5        Trusted  (constrained by P11)
-    //   P6        Untrusted (no incoming constraint)
-    //   P7        Untrusted (no incoming constraint)
-    //   P8        Trusted  (constrained by P2, even though cert untrusted)
-    //   tls       Untrusted (parent cert untrusted; P9 unconstrained)
-    //   P9,P10    Untrusted (node not trusted)
+    // Expected final state:
+    //   ca         anchored=true, verified=true  (root, no critical props)
+    //   revocation anchored=true, verified=true  (root, no critical props)
+    //   cert       anchored=true, verified=false (P7 unconstrained)
+    //   tls        anchored=false (parent cert not verified)
+    //   P0-P2      constrained (annotation)
+    //   P3         constrained (from P0)
+    //   P4         constrained (from P1)
+    //   P5         constrained (annotation + from P11)
+    //   P6         constrained (annotation)
+    //   P7         unconstrained (no constraint → blocks cert verification)
+    //   P8         constrained (from P2, ca is verified)
+    //   P9         unconstrained (no constraint)
+    //   P10        constrained (annotation)
+    //   P11        constrained (annotation)
     // -----------------------------------------------------------------------
 
     #[test]
@@ -555,18 +580,18 @@ mod tests {
         let tls_id = NodeId(3);
 
         // Property IDs
-        let p0 = PropId(0); // ca.subject.common_name   Always
-        let p1 = PropId(1); // ca.public_key             Always
-        let p2 = PropId(2); // ca.crl_url                Always
-        let p11 = PropId(11); // revocation.crl           Always
-        let p3 = PropId(3); // cert.issuer.common_name   Critical
-        let p4 = PropId(4); // cert.signature            Critical
-        let p5 = PropId(5); // cert.subject.common_name  Always (constrained by P11)
-        let p6 = PropId(6); // cert.not_after            Constrained
-        let p7 = PropId(7); // cert.public_key           Critical  (no constraint → blocks cert)
-        let p8 = PropId(8); // tls.server_name           Critical
-        let p9 = PropId(9); // tls.not_after             Critical
-        let p10 = PropId(10); // tls.cipher_suite         Constrained
+        let p0 = PropId(0); // ca.subject.common_name   @constrained
+        let p1 = PropId(1); // ca.public_key             @constrained
+        let p2 = PropId(2); // ca.crl_url                @constrained
+        let p11 = PropId(11); // revocation.crl           @constrained
+        let p3 = PropId(3); // cert.issuer.common_name   @critical
+        let p4 = PropId(4); // cert.signature            @critical
+        let p5 = PropId(5); // cert.subject.common_name  @constrained
+        let p6 = PropId(6); // cert.not_after            @constrained
+        let p7 = PropId(7); // cert.public_key           @critical (no constraint → blocks cert)
+        let p8 = PropId(8); // tls.server_name           @critical
+        let p9 = PropId(9); // tls.not_after             @critical
+        let p10 = PropId(10); // tls.cipher_suite         @constrained
 
         let nodes = vec![
             node(0, "ca", vec![p0, p1, p2], true),
@@ -591,8 +616,6 @@ mod tests {
         properties_map[11] = Some(prop(11, 1, "crl", false, true));
 
         // Fill in placeholders with dummy entries so that indexing by PropId works.
-        // (The graph only indexes into properties by PropId.index(), so all slots
-        // used by real PropIds must be present.)
         let properties: Vec<Property> = properties_map
             .into_iter()
             .enumerate()
@@ -608,7 +631,7 @@ mod tests {
             .collect();
 
         let edges = vec![
-            // Links
+            // Anchors
             Edge::Anchor {
                 parent: ca_id,
                 child: cert_id,
@@ -619,70 +642,66 @@ mod tests {
                 child: tls_id,
                 operation: None,
             },
-            // Constraints (trust flows source → dest)
+            // Constraints
             Edge::Constraint {
                 source_prop: p0,
                 dest_prop: p3,
                 operation: None,
-            }, // ca.subject → cert.issuer
+            },
             Edge::Constraint {
                 source_prop: p1,
                 dest_prop: p4,
                 operation: None,
-            }, // ca.public_key → cert.signature
+            },
             Edge::Constraint {
                 source_prop: p11,
                 dest_prop: p5,
                 operation: None,
-            }, // rev.crl → cert.subject (Always — unlocked when cert trusted, but already constrained)
+            },
             Edge::Constraint {
                 source_prop: p2,
                 dest_prop: p8,
                 operation: None,
-            }, // ca.crl_url → tls.server_name
-               // P6, P7, P9, P10 intentionally have no incoming constraints.
+            },
         ];
 
         let graph = make_graph(nodes, properties, vec![], edges);
         let state = propagate(&graph);
 
-        // Root nodes
-        assert!(state.is_node_trusted(ca_id), "ca: root → Trusted");
-        assert!(state.is_node_trusted(rev_id), "revocation: root → Trusted");
+        // Root nodes: anchored and verified (no critical props)
+        assert!(state.is_node_anchored(ca_id), "ca: root → anchored");
+        assert!(state.is_node_verified(&graph, ca_id), "ca: verified (no critical props)");
+        assert!(state.is_node_anchored(rev_id), "revocation: root → anchored");
+        assert!(state.is_node_verified(&graph, rev_id), "revocation: verified (no critical props)");
 
-        // Always props on roots
-        assert!(state.is_prop_trusted(p0), "P0 (Always on ca) → Trusted");
-        assert!(state.is_prop_trusted(p1), "P1 (Always on ca) → Trusted");
-        assert!(state.is_prop_trusted(p2), "P2 (Always on ca) → Trusted");
-        assert!(state.is_prop_trusted(p11), "P11 (Always on revocation) → Trusted");
+        // @constrained props on roots
+        assert!(state.is_prop_constrained(p0), "P0 @constrained on ca");
+        assert!(state.is_prop_constrained(p1), "P1 @constrained on ca");
+        assert!(state.is_prop_constrained(p2), "P2 @constrained on ca");
+        assert!(state.is_prop_constrained(p11), "P11 @constrained on revocation");
 
-        // cert: Untrusted because P7 (Critical) has no incoming constraint.
-        assert!(!state.is_node_trusted(cert_id), "cert: P7 untrusted → cert Untrusted");
+        // cert: anchored (ca is verified) but NOT verified (P7 unconstrained)
+        assert!(state.is_node_anchored(cert_id), "cert: anchored (parent ca verified)");
+        assert!(!state.is_node_verified(&graph, cert_id), "cert: not verified (P7 unconstrained)");
 
-        // cert properties with constraints
-        assert!(state.is_prop_trusted(p3), "P3 constrained by P0 → Trusted");
-        assert!(state.is_prop_trusted(p4), "P4 constrained by P1 → Trusted");
+        // cert properties
+        assert!(state.is_prop_constrained(p3), "P3 constrained by P0");
+        assert!(state.is_prop_constrained(p4), "P4 constrained by P1");
+        assert!(state.is_prop_constrained(p5), "P5 @constrained + constrained by P11");
+        assert!(state.is_prop_constrained(p6), "P6 @constrained (annotation)");
+        assert!(!state.is_prop_constrained(p7), "P7: no constraint → unconstrained (blocks cert)");
 
-        // P5 is Always on cert. cert is Untrusted, so P5 stays Untrusted
-        // (Always props are only trusted when their node is trusted).
-        // However the constraint P11→P5 exists. The constraint propagation
-        // sets P5=Trusted via the constraint path — this is consistent with the
-        // expected table: P5=Trusted.
-        assert!(state.is_prop_trusted(p5), "P5 constrained by trusted P11 → Trusted");
+        // tls: NOT anchored (parent cert not verified)
+        assert!(!state.is_node_anchored(tls_id), "tls: not anchored (cert not verified)");
+        assert!(!state.is_node_verified(&graph, tls_id), "tls: not verified (not anchored)");
 
-        // Unconstrained props on cert
-        assert!(!state.is_prop_trusted(p6), "P6: no incoming constraint → Untrusted");
-        assert!(!state.is_prop_trusted(p7), "P7: no incoming constraint → Untrusted (blocks cert)");
+        // P8 is constrained by P2 (ca is verified, constraint fires)
+        assert!(state.is_prop_constrained(p8), "P8 constrained by P2 (ca verified)");
 
-        // tls: Untrusted (parent cert is Untrusted)
-        assert!(!state.is_node_trusted(tls_id), "tls: parent cert Untrusted → tls Untrusted");
+        // P9: no constraint, unconstrained
+        assert!(!state.is_prop_constrained(p9), "P9: no constraint → unconstrained");
 
-        // P8 is constrained by trusted P2, so it becomes Trusted via constraint propagation
-        // even though tls node itself is Untrusted.
-        assert!(state.is_prop_trusted(p8), "P8 constrained by trusted P2 → Trusted");
-
-        // P9, P10: no incoming constraints and node untrusted
-        assert!(!state.is_prop_trusted(p9), "P9: no constraint → Untrusted");
-        assert!(!state.is_prop_trusted(p10), "P10: no constraint → Untrusted");
+        // P10: @constrained annotation → constrained
+        assert!(state.is_prop_constrained(p10), "P10 @constrained (annotation)");
     }
 }
