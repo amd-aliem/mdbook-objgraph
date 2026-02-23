@@ -256,11 +256,13 @@ fn find_corridor_channel(
     y_end: f64,
     edge_domain: Option<DomainId>,
 ) -> f64 {
-    // Filter corridors: intra-domain edges prefer same-domain corridors.
+    // Filter corridors by domain affinity:
+    //   - Intra-domain edges (Some(did)) → only same-domain corridors
+    //   - Cross-domain edges (None) → only inter-domain corridors (domain_id == None)
     let domain_matches = |c: &Corridor| -> bool {
         match edge_domain {
             Some(did) => c.domain_id == Some(did),
-            None => true,
+            None => c.domain_id.is_none(),
         }
     };
 
