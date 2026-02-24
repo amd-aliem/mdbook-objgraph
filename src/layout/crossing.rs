@@ -38,13 +38,13 @@ struct EdgeEndpoint {
 /// `Graph::nodes[].properties` vec (which we treat as read-only source of
 /// which properties exist, while this tracks their current display order).
 #[derive(Debug, Clone)]
-struct PropertyOrder {
+pub struct PropertyOrder {
     /// NodeId -> ordered list of PropId
     order: HashMap<NodeId, Vec<PropId>>,
 }
 
 impl PropertyOrder {
-    fn from_graph(graph: &Graph) -> Self {
+    pub fn from_graph(graph: &Graph) -> Self {
         let mut order = HashMap::new();
         for node in &graph.nodes {
             order.insert(node.id, node.properties.clone());
@@ -52,15 +52,15 @@ impl PropertyOrder {
         PropertyOrder { order }
     }
 
-    fn props_of(&self, node_id: NodeId) -> &[PropId] {
+    pub fn props_of(&self, node_id: NodeId) -> &[PropId] {
         self.order.get(&node_id).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
-    fn prop_index(&self, node_id: NodeId, prop_id: PropId) -> Option<usize> {
+    pub fn prop_index(&self, node_id: NodeId, prop_id: PropId) -> Option<usize> {
         self.props_of(node_id).iter().position(|&p| p == prop_id)
     }
 
-    fn num_props(&self, node_id: NodeId) -> usize {
+    pub fn num_props(&self, node_id: NodeId) -> usize {
         self.props_of(node_id).len()
     }
 
@@ -573,9 +573,9 @@ pub fn minimize_crossings(
     layers: &mut Vec<LayerEntry>,
     long_edges: &mut [LongEdge],
     graph: &Graph,
-) {
+) -> PropertyOrder {
     if layers.len() <= 1 {
-        return;
+        return PropertyOrder::from_graph(graph);
     }
 
     let mut prop_order = PropertyOrder::from_graph(graph);
@@ -585,7 +585,7 @@ pub fn minimize_crossings(
     let mut best_crossings = count_all_crossings(layers, graph, &prop_order, long_edges);
 
     if best_crossings == 0 {
-        return;
+        return prop_order;
     }
 
     for iteration in 0..MAX_ITERATIONS {
@@ -893,13 +893,7 @@ pub fn minimize_crossings(
     // layer ordering. We update long edge positions for the best layout.
     update_long_edge_positions(layers, long_edges);
 
-    // Note: The best property order is tracked internally. Since the Graph
-    // is immutable and we don't have a way to export property order through
-    // the current API, the property reordering effect is captured implicitly
-    // through the layer item ordering and the crossing count improvement.
-    // If downstream phases need property order, this could be extended to
-    // return PropertyOrder.
-    let _ = best_prop_order;
+    best_prop_order
 }
 
 /// Update long edge position maps to reflect current layer orderings.

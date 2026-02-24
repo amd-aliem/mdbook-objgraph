@@ -90,6 +90,7 @@ pub struct LayoutResult {
     pub intra_domain_constraints: Vec<EdgePath>,
     pub cross_domain_constraints: Vec<CrossDomainPaths>,
     pub cross_domain_deriv_chains: Vec<DerivChain>,
+    pub property_order: crossing::PropertyOrder,
     pub width: f64,
     pub height: f64,
 }
@@ -422,7 +423,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     let (mut layers, mut long_edges) = long_edge::build_layers(&assignment, graph);
 
     // Phase 3b: Crossing minimization
-    crossing::minimize_crossings(&mut layers, &mut long_edges, graph);
+    let prop_order = crossing::minimize_crossings(&mut layers, &mut long_edges, graph);
 
     // Phase 4: Coordinate assignment (Brandes-Köpf)
     let (mut node_layouts, mut deriv_layouts) =
@@ -463,6 +464,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         &deriv_layouts,
         &domain_layouts,
         &port_sides,
+        &prop_order,
     );
 
     // Classify edges into anchors, derivation edges, and constraints
@@ -537,6 +539,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         intra_domain_constraints,
         cross_domain_constraints,
         cross_domain_deriv_chains: Vec::new(),
+        property_order: prop_order,
         width,
         height,
     })

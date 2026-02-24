@@ -180,7 +180,7 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
         if let Some(lbl) = &ep.label {
             writeln!(
                 out,
-                r#"        <text class="obgraph-anchor-label" x="{x}" y="{y}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"#,
+                r##"        <text class="obgraph-anchor-label" x="{x}" y="{y}" fill="#22c55e" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,
                 x = lbl.x, y = lbl.y, anchor = lbl.anchor, text = escape_xml(&lbl.text)
             ).unwrap();
         }
@@ -208,7 +208,7 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
         if let Some(lbl) = &ep.label {
             writeln!(
                 out,
-                r#"        <text class="obgraph-constraint-label" x="{x}" y="{y}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"#,
+                r##"        <text class="obgraph-constraint-label" x="{x}" y="{y}" fill="#60a5fa" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,
                 x = lbl.x, y = lbl.y, anchor = lbl.anchor, text = escape_xml(&lbl.text)
             ).unwrap();
         }
@@ -492,8 +492,8 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
         )
         .unwrap();
 
-        // Property rows
-        for (prop_idx, &pid) in node.properties.iter().enumerate() {
+        // Property rows — use crossing-minimized order when available.
+        for (prop_idx, &pid) in layout.property_order.props_of(node.id).iter().enumerate() {
             let prop = &graph.properties[pid.index()];
             let prop_constrained = state.is_prop_constrained(pid);
 
@@ -709,6 +709,7 @@ mod tests {
 
     use super::*;
     use crate::layout::{CrossDomainPaths, DomainLayout, EdgePath, NodeLayout, StubPath};
+    use crate::layout::crossing::PropertyOrder;
     use crate::model::state;
     #[allow(unused_imports)]
     use crate::model::types::{
@@ -810,6 +811,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
         };
@@ -935,6 +937,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 200.0,
         };
@@ -1070,6 +1073,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: cross_vec,
+            property_order: PropertyOrder::from_graph(&graph),
             width: 400.0,
             height: 200.0,
         };
@@ -1158,6 +1162,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
         };
@@ -1286,6 +1291,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
         };
@@ -1410,6 +1416,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 200.0,
         };
@@ -1500,6 +1507,7 @@ mod tests {
                 label: None,
             }],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 400.0,
             height: 200.0,
         };
@@ -1573,6 +1581,7 @@ mod tests {
             cross_domain_deriv_chains: vec![],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
+            property_order: PropertyOrder::from_graph(&graph),
             width: 300.0,
             height: 100.0,
         };

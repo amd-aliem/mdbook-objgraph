@@ -243,13 +243,13 @@ pub fn css() -> &'static str {
 .obgraph-anchor-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 8px;
-  fill: var(--obg-anchor-valid);
+  fill: #22c55e;
 }
 
 .obgraph-constraint-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 6px;
-  fill: var(--obg-constraint-valid);
+  fill: #60a5fa;
 }
 "#
 }
