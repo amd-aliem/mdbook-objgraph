@@ -1,0 +1,292 @@
+# SEV-SNP + TPM Attestation — Realistic Field Names
+#
+# This example uses actual field names from X.509/c509, TPM 2.0
+# Structures, and AMD SEV-SNP Firmware ABI specifications.
+#
+# Design principles:
+#   - Nodes represent TBS (To Be Signed) bodies for X.509 certificates;
+#     signature verification is encoded by anchor links, not properties.
+#   - Anchor operations carry the real algorithm name (ecdsa_p384, etc.).
+#   - Flat c509-style property names with extensions.* for X.509 extensions.
+#   - Extensions with fixed/expected values (basic_constraints, key_usage)
+#     are @constrained — the verifier's policy engine validates them statically.
+#   - Properties whose integrity is guaranteed by the anchor (signed TBS fields)
+#     that also serve as constraint sources are @constrained.
+
+domain "Verifier" {
+  node System "System Clock" @anchored {
+    current_time                     @constrained
+  }
+
+  node Challenge "Attestation Challenge" @anchored @selected {
+    nonce                            @constrained
+  }
+}
+
+domain "AMD SEV-SNP" {
+  # Self-signed ECDSA P-384 root CA (AMD VCEK Certificate Spec §3)
+  node ARK "AMD Root Key (TBS)" @anchored {
+    serial_number
+    issuer                           @critical
+    not_before                       @critical
+    not_after                        @critical
+    subject                          @constrained
+    subject_public_key               @constrained
+    extensions.basic_constraints     @constrained
+    extensions.key_usage             @constrained
+    extensions.subject_key_id        @constrained
+    extensions.authority_key_id      @critical
+  }
+
+  # Intermediate CA signed by ARK
+  node ASK "AMD Signing Key (TBS)" {
+    serial_number
+    issuer                           @critical
+    not_before                       @critical
+    not_after                        @critical
+    subject                          @constrained
+    subject_public_key               @constrained
+    extensions.basic_constraints     @constrained
+    extensions.key_usage             @constrained
+    extensions.subject_key_id        @constrained
+    extensions.authority_key_id      @critical
+  }
+
+  # Leaf certificate with SEV-SNP custom OID extensions (1.3.6.1.4.1.3704.1.*)
+  node VCEK "VCEK (TBS)" {
+    serial_number
+    issuer                           @critical
+    not_before                       @critical
+    not_after                        @critical
+    subject                          @constrained
+    subject_public_key               @constrained
+    extensions.key_usage             @constrained
+    extensions.authority_key_id      @critical
+    extensions.hw_id                 @constrained
+    extensions.tcb.bootloader        @constrained
+    extensions.tcb.tee               @constrained
+    extensions.tcb.snp               @constrained
+    extensions.tcb.microcode         @constrained
+  }
+
+  # AMD SEV-SNP Firmware ABI Specification Table 24
+  node Report "Attestation Report" @selected {
+    version
+    guest_svn                        @critical
+    policy                           @constrained
+    family_id
+    image_id
+    vmpl                             @constrained
+    signature_algo
+    platform_info
+    report_data                      @constrained
+    measurement                      @critical
+    host_data
+    chip_id                          @critical
+    committed_tcb                    @critical
+    current_tcb                      @critical
+  }
+}
+
+domain "AMD KDS" {
+  node KDS "Key Distribution Service" @anchored {
+    tcb_versions                     @constrained
+  }
+}
+
+domain "NIST" {
+  node NVD @anchored {
+    cve_entries                      @constrained
+  }
+}
+
+domain "TPM" {
+  # TPM manufacturer root CA
+  node MfgCA "Manufacturer CA (TBS)" @anchored {
+    serial_number
+    issuer                           @critical
+    not_before                       @critical
+    not_after                        @critical
+    subject                          @constrained
+    subject_public_key               @constrained
+    extensions.basic_constraints     @constrained
+    extensions.key_usage             @constrained
+    extensions.subject_key_id        @constrained
+    extensions.authority_key_id      @critical
+  }
+
+  # EK credential per TCG EK Credential Profile 2.0
+  node EK "Endorsement Key (TBS)" {
+    serial_number
+    issuer                           @critical
+    not_before                       @critical
+    not_after                        @critical
+    subject
+    subject_public_key               @constrained
+    extensions.subject_alt_name      @critical
+    extensions.authority_key_id      @critical
+    extensions.certificate_policies  @constrained
+  }
+
+  # TPM key object (not a certificate)
+  node AK "Attestation Key" {
+    public_area                      @critical
+  }
+
+  # TPMS_ATTEST structure (TPM 2.0 Part 2: Structures)
+  node Quote "TPM Quote (TPMS_ATTEST)" {
+    magic
+    type
+    qualified_signer                 @critical
+    extra_data                       @critical
+    clock_info
+    firmware_version
+    quote_info.pcr_select
+    quote_info.pcr_digest            @constrained
+  }
+
+  # Sequence of TCG_PCR_EVENT2 entries
+  node TCGLog "TCG Event Log" {
+    pcr_index                        @constrained
+    event_type                       @constrained
+    digests                          @critical
+    event_data
+  }
+}
+
+domain "Guest vTPM" {
+  # Custom structure binding vTPM identity to SEV-SNP report
+  node GuestData "Guest Report Data" {
+    nonce                            @critical
+    ak_pub_hash                      @constrained
+  }
+
+  # vTPM endorsement key certificate
+  node vEK "vTPM EK (TBS)" {
+    serial_number
+    issuer                           @constrained
+    subject                          @constrained
+    subject_public_key               @constrained
+    extensions.authority_key_id      @critical
+  }
+
+  # vTPM attestation identity key
+  node vAK "vTPM AK" {
+    public_area                      @critical
+  }
+
+  # vTPM TPMS_ATTEST structure
+  node vQuote "vTPM Quote (TPMS_ATTEST)" {
+    magic
+    extra_data
+    qualified_signer                 @critical
+    quote_info.pcr_select
+    quote_info.pcr_digest            @constrained
+  }
+
+  # vTPM event log
+  node vTCGLog "vTPM Event Log" {
+    pcr_index                        @constrained
+    event_type                       @constrained
+    digests                          @critical
+    event_data
+  }
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Anchors (signature verification / trust derivation)
+# ═══════════════════════════════════════════════════════════════
+
+# AMD certificate chain
+ASK <- ARK : ecdsa_p384
+VCEK <- ASK : ecdsa_p384
+Report <- VCEK : ecdsa_p384
+
+# Physical TPM chain
+EK <- MfgCA : rsa_2048
+AK <- EK : tpm2_activate_credential
+Quote <- AK : rsassa_pss
+TCGLog <- Quote : pcr_replay
+
+# SEV-SNP to vTPM binding
+GuestData <- Report : sha256
+vEK <- GuestData : ecdsa_p256
+vAK <- vEK : tpm2_activate_credential
+vQuote <- vAK : rsassa_pss
+vTCGLog <- vQuote : pcr_replay
+
+# ═══════════════════════════════════════════════════════════════
+# AMD certificate chain constraints
+# ═══════════════════════════════════════════════════════════════
+
+# ARK self-signed checks
+ARK::issuer <= ARK::subject : issuer_match
+ARK::extensions.authority_key_id <= ARK::extensions.subject_key_id
+ARK::not_before <= System::current_time : time_valid
+ARK::not_after <= System::current_time : time_valid
+
+# ASK issued by ARK
+ASK::issuer <= ARK::subject : issuer_match
+ASK::extensions.authority_key_id <= ARK::extensions.subject_key_id
+ASK::not_before <= System::current_time : time_valid
+ASK::not_after <= System::current_time : time_valid
+
+# VCEK issued by ASK
+VCEK::issuer <= ASK::subject : issuer_match
+VCEK::extensions.authority_key_id <= ASK::extensions.subject_key_id
+VCEK::not_before <= System::current_time : time_valid
+VCEK::not_after <= System::current_time : time_valid
+
+# ═══════════════════════════════════════════════════════════════
+# Attestation Report constraints
+# ═══════════════════════════════════════════════════════════════
+
+Report::chip_id <= VCEK::extensions.hw_id
+Report::current_tcb <= VCEK::extensions.tcb.bootloader : tcb_component_ge
+Report::committed_tcb <= KDS::tcb_versions : in
+Report::guest_svn <= filter(KDS::tcb_versions, NVD::cve_entries) : in
+
+# ═══════════════════════════════════════════════════════════════
+# TPM chain constraints
+# ═══════════════════════════════════════════════════════════════
+
+# MfgCA self-signed checks
+MfgCA::issuer <= MfgCA::subject : issuer_match
+MfgCA::extensions.authority_key_id <= MfgCA::extensions.subject_key_id
+MfgCA::not_before <= System::current_time : time_valid
+MfgCA::not_after <= System::current_time : time_valid
+
+# EK issued by manufacturer
+EK::issuer <= MfgCA::subject : issuer_match
+EK::extensions.authority_key_id <= MfgCA::extensions.subject_key_id
+EK::not_before <= System::current_time : time_valid
+EK::not_after <= System::current_time : time_valid
+
+# AK credential binding
+AK::public_area <= EK::subject_public_key : tpm2_activate_credential
+
+# Quote verification
+Quote::qualified_signer <= AK::public_area : sha256_name
+Quote::extra_data <= Challenge::nonce
+
+# Event log replay
+TCGLog::digests <= Quote::quote_info.pcr_digest : pcr_replay
+
+# ═══════════════════════════════════════════════════════════════
+# Guest vTPM constraints
+# ═══════════════════════════════════════════════════════════════
+
+# vEK authority bound through GuestData
+vEK::extensions.authority_key_id <= GuestData::ak_pub_hash
+
+# vTPM key and quote chain
+vAK::public_area <= vEK::subject_public_key : tpm2_activate_credential
+vQuote::qualified_signer <= vAK::public_area : sha256_name
+vTCGLog::digests <= vQuote::quote_info.pcr_digest : pcr_replay
+
+# ═══════════════════════════════════════════════════════════════
+# Cross-domain constraints
+# ═══════════════════════════════════════════════════════════════
+
+# Nonce freshness
+GuestData::nonce <= Challenge::nonce

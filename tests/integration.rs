@@ -270,3 +270,32 @@ fn sev_snp_tpm_full_pipeline() {
     assert!(svg.contains("TPM Quote"), "Output should contain Quote label");
     assert!(svg.contains("vTPM Event Log"), "Output should contain vTCGLog label");
 }
+
+const SEV_SNP_REALISTIC: &str = include_str!("sev_snp_realistic.obgraph");
+
+#[test]
+fn sev_snp_realistic_full_pipeline() {
+    let result = mdbook_obgraph::process(SEV_SNP_REALISTIC);
+    assert!(
+        result.is_ok(),
+        "Realistic SEV-SNP+TPM pipeline should succeed: {:?}",
+        result.err()
+    );
+    let svg = result.unwrap();
+    assert!(svg.contains("obgraph-container"), "Output should contain SVG container");
+    assert!(svg.contains("AMD Root Key (TBS)"), "Output should contain ARK label");
+    assert!(svg.contains("VCEK (TBS)"), "Output should contain VCEK label");
+    assert!(svg.contains("Attestation Report"), "Output should contain Report label");
+    assert!(
+        svg.contains("TPM Quote (TPMS_ATTEST)"),
+        "Output should contain Quote label"
+    );
+    assert!(
+        svg.contains("extensions.hw_id"),
+        "Output should contain realistic property names"
+    );
+    assert!(
+        svg.contains("quote_info.pcr_digest"),
+        "Output should contain dotted property names"
+    );
+}

@@ -175,3 +175,46 @@ fn sev_snp_column_height_balance() {
     );
 }
 
+// ── Realistic SEV-SNP+TPM example ─────────────────────────────────────
+
+#[test]
+fn sev_snp_realistic_no_node_overlaps() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    eprintln!("{}", report.summary());
+    assert!(
+        report.node_overlaps.is_empty(),
+        "Realistic example should have no node-node overlaps: {:?}",
+        report.node_overlaps
+    );
+}
+
+#[test]
+fn sev_snp_realistic_quality_summary() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    eprintln!("{}", report.summary());
+}
+
+#[test]
+fn sev_snp_realistic_no_derivs_inside_domains() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.derivs_inside_domains.is_empty(),
+        "Cross-domain derivations must not overlap any domain: {:?}",
+        report.derivs_inside_domains
+    );
+}
+
+#[test]
+fn sev_snp_realistic_domain_contiguity() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.domain_contiguity_violations.is_empty(),
+        "Domains must be vertically contiguous: {:?}",
+        report.domain_contiguity_violations
+    );
+}
+
