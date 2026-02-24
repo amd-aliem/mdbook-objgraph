@@ -416,7 +416,10 @@ pub fn assign_port_sides(
             LayoutEndpoint::Node(nid) => nid,
             LayoutEndpoint::Deriv(did) => {
                 // For DerivInput: downstream is a derivation.
-                // We assign the upstream (source prop) side based on relative position.
+                // Assign both upstream (source prop) and downstream (derivation)
+                // sides based on relative horizontal position so that inputs
+                // enter the derivation pill from the left or right, using
+                // corridor-based routing like constraints.
                 let src_nl = match find_node_layout(node_layouts, src_node_id) {
                     Some(nl) => nl,
                     None => continue,
@@ -429,11 +432,16 @@ pub fn assign_port_sides(
                 let tgt_cx = dl.x + dl.width / 2.0;
 
                 if src_cx < tgt_cx {
+                    // Source is to the left — exit right, enter left.
                     sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
+                    sides.insert((edge_id, EndpointRole::Downstream), PortSide::Left);
                 } else if src_cx > tgt_cx {
+                    // Source is to the right — exit left, enter right.
                     sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
+                    sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
                 } else {
-                    // Same column: use per-node counter for the source.
+                    // Same column: use per-node counter for the source,
+                    // and mirror the side on the derivation.
                     let cnt = node_side_counter.entry(src_node_id).or_insert(0);
                     let side = if *cnt % 2 == 0 {
                         PortSide::Right
@@ -442,8 +450,8 @@ pub fn assign_port_sides(
                     };
                     *cnt += 1;
                     sides.insert((edge_id, EndpointRole::Upstream), side);
+                    sides.insert((edge_id, EndpointRole::Downstream), side);
                 }
-                // Downstream of a DerivInput connects to derivation center; no side.
                 continue;
             }
         };
@@ -722,11 +730,23 @@ fn port_position(
                     Some((x, y, side))
                 }
                 EndpointRole::Downstream => {
-                    // Downstream of DerivInput connects to derivation center.
+                    // Downstream of DerivInput connects to derivation pill
+                    // at the assigned side (left or right at mid-height),
+                    // falling back to top-center if no side is assigned.
                     let dl = find_deriv_layout(deriv_layouts, *target_deriv)?;
-                    let x = dl.x + dl.width / 2.0;
-                    let y = dl.y;
-                    Some((x, y, None))
+                    let side = port_sides.get(&(edge_id, role)).copied();
+                    match side {
+                        Some(PortSide::Left) => {
+                            Some((dl.x, dl.y + dl.height / 2.0, Some(PortSide::Left)))
+                        }
+                        Some(PortSide::Right) => {
+                            Some((dl.x + dl.width, dl.y + dl.height / 2.0, Some(PortSide::Right)))
+                        }
+                        None => {
+                            // No side assigned — connect to top center.
+                            Some((dl.x + dl.width / 2.0, dl.y, None))
+                        }
+                    }
                 }
             }
         }
@@ -1044,8 +1064,12 @@ pub fn route_all_edges(
                 Edge::Constraint { source_prop, dest_prop, .. } => {
                     (Some(prop_node(graph, *source_prop)), Some(prop_node(graph, *dest_prop)))
                 }
-                Edge::DerivInput { source_prop, .. } => {
-                    (Some(prop_node(graph, *source_prop)), None)
+                Edge::DerivInput { source_prop, target_deriv } => {
+                    // Use the derivation output property's node as a proxy for the
+                    // derivation's domain context so corridor selection works.
+                    let deriv = &graph.derivations[target_deriv.index()];
+                    let out_node = graph.properties[deriv.output_prop.index()].node;
+                    (Some(prop_node(graph, *source_prop)), Some(out_node))
                 }
             };
             let sd = src_nid.and_then(|n| graph.nodes[n.index()].domain);

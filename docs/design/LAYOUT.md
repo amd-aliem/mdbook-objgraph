@@ -657,8 +657,25 @@ function assign_port_sides(graph, x) → side[]:
                 // Anchors use center top/bottom ports, not left/right.
                 // No side assignment needed; skip.
                 continue
+            DerivInput { source_prop, target_deriv, .. }:
+                // Both upstream (source property) and downstream (derivation)
+                // get side assignments based on relative horizontal position.
+                // Inputs enter the derivation pill from the left or right,
+                // using corridor-based H-V-H routing like constraints.
+                src_cx = x[property_node(upstream)] + width(property_node(upstream)) / 2
+                tgt_cx = derivation_layout[target_deriv].x
+                       + derivation_layout[target_deriv].width / 2
+                if src_cx < tgt_cx:
+                    side[e, Upstream] = Right    // exit right toward derivation
+                    side[e, Downstream] = Left   // enter derivation from left
+                else if src_cx > tgt_cx:
+                    side[e, Upstream] = Left
+                    side[e, Downstream] = Right
+                else:
+                    side[e, Upstream] = alternating  // per-node counter
+                    side[e, Downstream] = same_side  // mirror on derivation
             _:
-                // Constraint and DerivInput edges use property ports.
+                // Constraint edges use property ports.
                 src_node = property_node(upstream)
                 tgt_node = property_node(downstream)
 
@@ -830,15 +847,17 @@ the accepted cost of visual clarity.
 ##### Channel Collision Invariant
 
 > **No two edges may share the same vertical channel x-coordinate with
-> overlapping y-ranges**, except for consecutive center-port edges (Anchor
-> or DerivInput) that share a common node or derivation endpoint.
+> overlapping y-ranges**, except for consecutive center-port Anchor edges
+> that share a common node endpoint.
 
-The center-port exemption covers two cases:
+The center-port exemption covers one case:
 
 1. **Anchor chains**: A parent→child→grandchild anchor chain naturally
    overlaps at the child node's center x.
-2. **DerivInput convergence**: Multiple DerivInput edges targeting the same
-   derivation pill share the derivation's center x.
+
+DerivInput edges use side-based corridor routing (entering derivation pills
+from the left or right at mid-height), so they no longer share center-port
+channels and are not exempt from the collision invariant.
 
 ##### Routing Data Structures
 
@@ -883,7 +902,7 @@ function layout_endpoints(edge) → (upstream_element, downstream_element):
             downstream = dest_prop     // PropId
         DerivInput { source_prop, target_deriv, .. }:
             upstream = source_prop     // PropId
-            downstream = target_deriv  // DerivId — use derivation center point
+            downstream = target_deriv  // DerivId — use derivation left/right/top
 ```
 
 "Upstream" is the higher layer (lower y-coordinate); "downstream" is the lower
@@ -922,10 +941,18 @@ function port_position(edge, endpoint_role) → (x, y):
                     else port_right_x(source_prop.node)
                 y = port_y(source_prop.node, source_prop.index)
             else:
-                // Downstream is a derivation node — use its center
+                // Downstream connects to derivation pill at assigned side
                 d = derivation_layout[target_deriv]
-                x = d.x
-                y = d.y
+                side = port_side_assignment[edge, Downstream]
+                if side == Left:
+                    x = d.x                    // left edge of pill
+                    y = d.y + d.height / 2     // mid-height
+                else if side == Right:
+                    x = d.x + d.width          // right edge of pill
+                    y = d.y + d.height / 2     // mid-height
+                else:
+                    x = d.x + d.width / 2      // top center (fallback)
+                    y = d.y
 ```
 
 ##### Routing Algorithm

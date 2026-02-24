@@ -920,11 +920,10 @@ fn find_channel_collisions(
     };
 
     // Both edges use center-port routing at the shared node.
-    // Anchors use center top/bottom; DerivInputs use center on the
-    // derivation end. Pairs of these edge types naturally share the
-    // center x of their common node/derivation.
+    // Only Anchors use center top/bottom ports; DerivInputs now use
+    // side-based corridor routing so they are no longer exempt.
     let both_center_port = |a: EdgeId, b: EdgeId| -> bool {
-        let is_center = |e: &Edge| matches!(e, Edge::Anchor { .. } | Edge::DerivInput { .. });
+        let is_center = |e: &Edge| matches!(e, Edge::Anchor { .. });
         is_center(&graph.edges[a.index()]) && is_center(&graph.edges[b.index()])
     };
 
