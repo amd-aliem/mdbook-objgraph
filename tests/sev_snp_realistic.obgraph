@@ -73,18 +73,30 @@ domain "AMD SEV-SNP" {
   node Report "Attestation Report" @selected {
     version
     guest_svn                        @critical
-    policy                           @constrained
+    policy.abi_major
+    policy.abi_minor
+    policy.smt
+    policy.migration_agent
+    policy.debug                     @constrained
+    policy.single_socket             @constrained
     family_id
     image_id
     vmpl                             @constrained
     signature_algo
-    platform_info
+    platform_info.smt_enabled
+    platform_info.tsme_enabled
     report_data                      @constrained
     measurement                      @critical
     host_data
     chip_id                          @critical
-    committed_tcb                    @critical
-    current_tcb                      @critical
+    committed_tcb.bootloader         @critical
+    committed_tcb.tee                @critical
+    committed_tcb.snp                @critical
+    committed_tcb.microcode          @critical
+    current_tcb.bootloader           @critical
+    current_tcb.tee                  @critical
+    current_tcb.snp                  @critical
+    current_tcb.microcode            @critical
   }
 }
 
@@ -242,8 +254,19 @@ VCEK::not_after <= System::current_time : time_valid
 # ═══════════════════════════════════════════════════════════════
 
 Report::chip_id <= VCEK::extensions.hw_id
-Report::current_tcb <= VCEK::extensions.tcb.bootloader : tcb_component_ge
-Report::committed_tcb <= KDS::tcb_versions : in
+
+# current_tcb must be >= VCEK-certified TCB (firmware only goes up)
+Report::current_tcb.bootloader <= VCEK::extensions.tcb.bootloader : ge
+Report::current_tcb.tee <= VCEK::extensions.tcb.tee : ge
+Report::current_tcb.snp <= VCEK::extensions.tcb.snp : ge
+Report::current_tcb.microcode <= VCEK::extensions.tcb.microcode : ge
+
+# committed_tcb components must match known-good versions
+Report::committed_tcb.bootloader <= filter(KDS::tcb_versions, NVD::cve_entries) : ge
+Report::committed_tcb.tee <= filter(KDS::tcb_versions, NVD::cve_entries) : ge
+Report::committed_tcb.snp <= filter(KDS::tcb_versions, NVD::cve_entries) : ge
+Report::committed_tcb.microcode <= filter(KDS::tcb_versions, NVD::cve_entries) : ge
+
 Report::guest_svn <= filter(KDS::tcb_versions, NVD::cve_entries) : in
 
 # ═══════════════════════════════════════════════════════════════
