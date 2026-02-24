@@ -438,6 +438,83 @@ fn tree_center_nodes(
 }
 
 // ---------------------------------------------------------------------------
+// Derivation re-centering post-processor
+// ---------------------------------------------------------------------------
+
+/// Re-center derivation pills horizontally over their connected input nodes
+/// after all node positioning is finalized.
+///
+/// Derivations are initially positioned by Brandes-Kopf (Phase 4), but
+/// subsequent phases (tree centering 4b, columnar layout 5b, vertical
+/// compaction 5c) shift node x-positions without updating derivation
+/// positions.  This pass recomputes each derivation's x-coordinate to be
+/// centered on the mean x-center of its input source nodes.
+///
+/// Vertical positioning is handled by `separate_column_elements_vertically`
+/// (Phase 5c) which places cross-domain derivations as column elements with
+/// proper gap spacing relative to domains.  We also adjust the y-coordinate
+/// here: if both connected layers (input nodes above, output node below) are
+/// available, place the derivation at the vertical midpoint -- but only when
+/// that midpoint does not fall inside any domain bounding box.
+fn recenter_derivations(
+    deriv_layouts: &mut [DerivLayout],
+    node_layouts: &[NodeLayout],
+    domain_layouts: &[DomainLayout],
+    graph: &Graph,
+) {
+    for deriv in &graph.derivations {
+        let dl = &deriv_layouts[deriv.id.index()];
+        let dw = dl.width;
+        let dh = dl.height;
+
+        // Collect x-centers and bottom y of input source nodes.
+        let mut input_x_centers: Vec<f64> = Vec::new();
+        let mut input_bottom_y = f64::NEG_INFINITY;
+        for &input_prop in &deriv.inputs {
+            let src_node = graph.properties[input_prop.index()].node;
+            let nl = &node_layouts[src_node.index()];
+            input_x_centers.push(nl.x + nl.width / 2.0);
+            input_bottom_y = input_bottom_y.max(nl.y + nl.height);
+        }
+
+        // Output node top y.
+        let out_node = graph.properties[deriv.output_prop.index()].node;
+        let out_nl = &node_layouts[out_node.index()];
+        let output_top_y = out_nl.y;
+
+        // --- X centering ---
+        if !input_x_centers.is_empty() {
+            let mean_x: f64 =
+                input_x_centers.iter().sum::<f64>() / input_x_centers.len() as f64;
+            deriv_layouts[deriv.id.index()].x = mean_x - dw / 2.0;
+        }
+
+        // --- Y adjustment ---
+        // Try the midpoint between input node bottoms and output node top.
+        // Only use it if the resulting pill rectangle does not intersect
+        // any domain bounding box.
+        if input_bottom_y.is_finite() {
+            let mid_y = (input_bottom_y + output_top_y) / 2.0;
+            let candidate_y = mid_y - dh / 2.0;
+            let candidate_x = deriv_layouts[deriv.id.index()].x;
+
+            let overlaps_domain = domain_layouts.iter().any(|dom| {
+                // AABB overlap test.
+                candidate_x < dom.x + dom.width
+                    && candidate_x + dw > dom.x
+                    && candidate_y < dom.y + dom.height
+                    && candidate_y + dh > dom.y
+            });
+
+            if !overlaps_domain {
+                deriv_layouts[deriv.id.index()].y = candidate_y;
+            }
+            // Otherwise keep the y from vertical compaction (Phase 5c).
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main layout entry point
 // ---------------------------------------------------------------------------
 
@@ -475,6 +552,12 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         &mut domain_layouts,
         graph,
     );
+
+    // Phase 5d: Re-center derivations over their (now-shifted) input nodes.
+    // Phases 4b, 5b, and 5c move nodes without updating derivation positions.
+    // This pass recomputes derivation x (centered on input nodes) and
+    // conditionally adjusts y (midpoint between layers, avoiding domains).
+    recenter_derivations(&mut deriv_layouts, &node_layouts, &domain_layouts, graph);
 
     // Phase 5e: Normalize — shift all elements so that the minimum x and y are >= 0.
     // This must happen before edge routing so that SVG path coordinates match the

@@ -813,6 +813,9 @@ pub fn separate_column_elements_vertically(
     }
 
     // Add cross-domain derivations.
+    // Use connected-node y-centers for sort key rather than the derivation's
+    // own stale y-coordinate (which was set by Brandes-Kopf before columnar
+    // layout shifted nodes).
     for deriv in &graph.derivations {
         let input_domains: Vec<Option<DomainId>> = deriv
             .inputs
@@ -829,11 +832,43 @@ pub fn separate_column_elements_vertically(
         };
 
         if !all_same_domain {
-            let dl = &deriv_layouts[deriv.id.index()];
-            let cx = dl.x + dl.width / 2.0;
+            // Compute sort key from input node positions: just below the
+            // lowest input node.  This places the derivation immediately
+            // after the last input domain in the column, which is the
+            // natural reading order.  We do NOT include the output node
+            // (which may be in a different column with a very different y).
+            let mut input_bottom_y = f64::NEG_INFINITY;
+            for &input_prop in &deriv.inputs {
+                let src_node = graph.properties[input_prop.index()].node;
+                let nl = &node_layouts[src_node.index()];
+                input_bottom_y = input_bottom_y.max(nl.y + nl.height);
+            }
+            let y_sort_key = if input_bottom_y.is_finite() {
+                // Tiny offset past the last input node bottom, so the
+                // derivation sorts right after its input nodes' domains.
+                input_bottom_y + 1.0
+            } else {
+                deriv_layouts[deriv.id.index()].y + deriv_layouts[deriv.id.index()].height / 2.0
+            };
+
+            // Compute column from connected-node x-centers (not stale deriv x).
+            let mut input_x_sum = 0.0_f64;
+            let mut input_count = 0usize;
+            for &input_prop in &deriv.inputs {
+                let src_node = graph.properties[input_prop.index()].node;
+                let nl = &node_layouts[src_node.index()];
+                input_x_sum += nl.x + nl.width / 2.0;
+                input_count += 1;
+            }
+            let cx = if input_count > 0 {
+                input_x_sum / input_count as f64
+            } else {
+                let dl = &deriv_layouts[deriv.id.index()];
+                dl.x + dl.width / 2.0
+            };
             let col = assign_column(cx);
-            let y_center = dl.y + dl.height / 2.0;
-            columns[col].push((ColumnElement::CrossDomainDeriv(deriv.id), y_center));
+
+            columns[col].push((ColumnElement::CrossDomainDeriv(deriv.id), y_sort_key));
         }
     }
 
