@@ -111,7 +111,7 @@ pub fn css() -> &'static str {
   pointer-events: auto;
 }
 
-/* Cross-domain constraint stub — base (no dash by default) */
+/* Cross-domain constraint stub — short dotted line near destination port */
 .obgraph-constraint-stub {
   fill: none;
   stroke: var(--obg-constraint-valid);
@@ -119,12 +119,7 @@ pub fn css() -> &'static str {
   transition: opacity 0.15s ease;
 }
 
-/* Solid half of stub (closest to destination port) */
-.obgraph-constraint-stub.obgraph-stub-solid {
-  stroke-dasharray: none;
-}
-
-/* Dotted half of stub (fading away from destination) */
+/* Dotted stub pattern */
 .obgraph-constraint-stub.obgraph-stub-dotted {
   stroke-dasharray: 2 2;
 }

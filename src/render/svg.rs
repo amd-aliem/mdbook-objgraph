@@ -254,18 +254,12 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     for cross in &layout.cross_domain_constraints {
         let participants_str = participants_attr(&cross.participants);
         let valid = is_edge_valid(cross.full_path.edge_id, graph, state);
-        let marker = if valid {
-            "arrow-constraint-valid"
-        } else {
-            "arrow-constraint-invalid"
-        };
         let stub_class = if valid {
             "obgraph-constraint-stub"
         } else {
             "obgraph-constraint-stub obgraph-constraint-stub-invalid"
         };
         for sp in &cross.stub_paths {
-            // Dotted half (fading away from destination) — no arrowhead
             if !sp.dotted_svg.is_empty() {
                 writeln!(
                     out,
@@ -274,19 +268,6 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
                     d = sp.dotted_svg,
                     id = sp.edge_id.0,
                     p = participants_str,
-                )
-                .unwrap();
-            }
-            // Solid half (closest to destination port) — carries arrowhead
-            if !sp.solid_svg.is_empty() {
-                writeln!(
-                    out,
-                    r#"        <path class="{cls} obgraph-stub-solid" d="{d}" data-edge="{id}" data-participants="{p}" marker-end="url(#{marker})"/>"#,
-                    cls = stub_class,
-                    d = sp.solid_svg,
-                    id = sp.edge_id.0,
-                    p = participants_str,
-                    marker = marker,
                 )
                 .unwrap();
             }
@@ -337,23 +318,11 @@ fn write_deriv_chains(out: &mut String, layout: &LayoutResult) {
 
         // Stub paths (shown by default, hidden on hover/select)
         for sp in &chain.stub_paths {
-            // Dotted half (fading away from destination)
             if !sp.dotted_svg.is_empty() {
                 writeln!(
                     out,
                     r#"        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="{d}" data-edge="{id}" data-participants="{p}"/>"#,
                     d = sp.dotted_svg,
-                    id = sp.edge_id.0,
-                    p = participants_str,
-                )
-                .unwrap();
-            }
-            // Solid half (closest to destination port)
-            if !sp.solid_svg.is_empty() {
-                writeln!(
-                    out,
-                    r#"        <path class="obgraph-constraint-stub obgraph-stub-solid" d="{d}" data-edge="{id}" data-participants="{p}"/>"#,
-                    d = sp.solid_svg,
                     id = sp.edge_id.0,
                     p = participants_str,
                 )
@@ -1040,8 +1009,7 @@ mod tests {
             },
             stub_paths: vec![StubPath {
                 edge_id: EdgeId(0),
-                solid_svg: "M 110,50 L 120,50".to_string(),
-                dotted_svg: "M 100,50 L 110,50".to_string(),
+                dotted_svg: "M 100,50 L 120,50".to_string(),
             }],
         }];
 
@@ -1107,25 +1075,17 @@ mod tests {
             svg.contains("obgraph-constraint-stub"),
             "missing obgraph-constraint-stub class"
         );
-        // Stub must have both solid and dotted halves.
-        assert!(
-            svg.contains("obgraph-stub-solid"),
-            "missing obgraph-stub-solid class on stub"
-        );
+        // Stub must have a dotted path (no solid half).
         assert!(
             svg.contains("obgraph-stub-dotted"),
             "missing obgraph-stub-dotted class on stub"
         );
-
-        // Stub paths must carry participants attribute.
-        let stub_line = svg
-            .lines()
-            .find(|l| l.contains("<path") && l.contains("obgraph-stub-solid"))
-            .expect("no stub-solid path element found");
         assert!(
-            stub_line.contains("data-participants="),
-            "stub solid path must carry data-participants"
+            !svg.contains("obgraph-stub-solid"),
+            "stub should not contain solid half"
         );
+
+        // Stub dotted path must carry participants attribute.
         let stub_dotted_line = svg
             .lines()
             .find(|l| l.contains("<path") && l.contains("obgraph-stub-dotted"))

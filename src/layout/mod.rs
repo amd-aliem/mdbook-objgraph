@@ -47,8 +47,8 @@ pub const CORRIDOR_PAD: f64 = 8.0;
 pub const CHANNEL_GAP: f64 = 4.0;
 /// Parallel edge offset in shared channels.
 pub const EDGE_SPACING: f64 = 8.0;
-/// Cross-domain constraint stub arrow length.
-pub const STUB_LENGTH: f64 = 20.0;
+/// Cross-domain constraint stub length (dotted line near destination port).
+pub const STUB_LENGTH: f64 = 10.0;
 /// All arrowheads are 6×6; path endpoint offset by this amount.
 pub const ARROWHEAD_SIZE: f64 = 6.0;
 /// Derivation pill height (matches row height).
@@ -221,13 +221,11 @@ pub struct DerivChain {
     pub stub_paths: Vec<StubPath>,
 }
 
-/// A single stub segment with solid (near port) and dotted (fading) parts.
+/// A short dotted stub near the destination port of a cross-domain constraint.
 #[derive(Debug, Clone)]
 pub struct StubPath {
     pub edge_id: EdgeId,
-    /// SVG path for the solid half (closest to the destination port).
-    pub solid_svg: String,
-    /// SVG path for the dotted half (fading away from the destination).
+    /// SVG path for the dotted stub (short segment near the destination port).
     pub dotted_svg: String,
 }
 
@@ -620,13 +618,11 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
                 let is_cross_domain = is_cross_domain_constraint(graph, src_node, dst_node);
 
                 if is_cross_domain {
-                    // Generate destination-end stub with solid+dotted halves
-                    let stub_parts = routing::generate_stub(route);
-                    let solid_svg = routing::route_to_svg_path(&stub_parts.solid);
-                    let dotted_svg = routing::route_to_svg_path(&stub_parts.dotted);
+                    // Generate short dotted stub near the destination port
+                    let stub_route = routing::generate_stub(route);
+                    let dotted_svg = routing::route_to_svg_path(&stub_route);
                     let stub_path = StubPath {
                         edge_id: route.edge_id,
-                        solid_svg,
                         dotted_svg,
                     };
 
