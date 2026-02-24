@@ -167,8 +167,8 @@ pub fn columnar_layout(
     // Step 1: Build cross-domain adjacency graph.
     let adj = build_cross_domain_adjacency(graph, domain_layouts);
 
-    // Step 2: Assign domains to columns.
-    let columns = assign_columns(&adj, domain_layouts);
+    // Step 2: Assign domains to columns (anchor-aware).
+    let columns = assign_columns(&adj, domain_layouts, graph);
 
     // Step 3: Count max simultaneous cross-column channels for gap sizing.
     let cross_col_counts =
@@ -248,68 +248,193 @@ fn build_cross_domain_adjacency(
     adj
 }
 
-/// Assign domains to columns using BFS from the hub domain.
+/// Build cross-domain anchor relationships: maps domain layout indices that
+/// are connected by anchor edges (parent domain -> child domain).
 ///
-/// - Hub (most cross-domain neighbors) → column 0
-/// - Direct neighbors → column 1
-/// - Satellite domains (degree 1) join their sole neighbor's column
-/// - Unconnected domains → column 0
+/// Returns a set of directed pairs (parent_dl_idx, child_dl_idx).
+fn build_anchor_domain_pairs(
+    graph: &Graph,
+    domain_layouts: &[DomainLayout],
+) -> HashSet<(usize, usize)> {
+    let mut pairs = HashSet::new();
+
+    let domain_idx = |did: DomainId| -> Option<usize> {
+        domain_layouts.iter().position(|d| d.id == did)
+    };
+
+    for edge in &graph.edges {
+        if let Edge::Anchor { parent, child, .. } = edge {
+            let parent_domain = graph.nodes[parent.index()].domain;
+            let child_domain = graph.nodes[child.index()].domain;
+            if let (Some(pd), Some(cd)) = (parent_domain, child_domain) {
+                if pd != cd {
+                    if let (Some(pi), Some(ci)) = (domain_idx(pd), domain_idx(cd)) {
+                        pairs.insert((pi, ci));
+                    }
+                }
+            }
+        }
+    }
+    pairs
+}
+
+/// Union-Find for merging domains into anchor groups.
+fn find_root(parent: &mut Vec<usize>, x: usize) -> usize {
+    if parent[x] != x {
+        parent[x] = find_root(parent, parent[x]);
+    }
+    parent[x]
+}
+
+fn union(parent: &mut Vec<usize>, rank: &mut Vec<usize>, a: usize, b: usize) {
+    let ra = find_root(parent, a);
+    let rb = find_root(parent, b);
+    if ra == rb {
+        return;
+    }
+    if rank[ra] < rank[rb] {
+        parent[ra] = rb;
+    } else if rank[ra] > rank[rb] {
+        parent[rb] = ra;
+    } else {
+        parent[rb] = ra;
+        rank[ra] += 1;
+    }
+}
+
+/// Assign domains to columns, respecting anchor relationships.
+///
+/// Anchor edges represent vertical parent-child hierarchy. When domain A has
+/// an anchor edge to domain B, domain B should be in the same column as
+/// domain A (vertically below it), not in a separate column.
+///
+/// Algorithm:
+/// 1. Build anchor groups: domains connected by cross-domain anchor edges
+///    are merged into the same group (using Union-Find).
+/// 2. Treat each anchor group as a single "super-domain" for column assignment.
+/// 3. Assign super-domains to columns using BFS from the hub, alternating
+///    columns based on non-anchor cross-domain adjacency.
+/// 4. All domains in the same anchor group get the same column.
 fn assign_columns(
     adj: &HashMap<usize, HashSet<usize>>,
     domain_layouts: &[DomainLayout],
+    graph: &Graph,
 ) -> Vec<Vec<usize>> {
     let n = domain_layouts.len();
-    let mut col_assignment: Vec<Option<usize>> = vec![None; n];
+    if n == 0 {
+        return Vec::new();
+    }
 
-    // Find hub domain (highest degree in cross-domain graph).
-    let hub = (0..n)
-        .max_by_key(|&i| adj.get(&i).map_or(0, |s| s.len()))
+    // Step 1: Build anchor groups using Union-Find.
+    let anchor_pairs = build_anchor_domain_pairs(graph, domain_layouts);
+
+    let mut uf_parent: Vec<usize> = (0..n).collect();
+    let mut uf_rank: Vec<usize> = vec![0; n];
+
+    for &(pi, ci) in &anchor_pairs {
+        union(&mut uf_parent, &mut uf_rank, pi, ci);
+    }
+
+    // Build group mapping: root -> Vec<domain_idx>.
+    let mut groups: HashMap<usize, Vec<usize>> = HashMap::new();
+    for i in 0..n {
+        let root = find_root(&mut uf_parent, i);
+        groups.entry(root).or_default().push(i);
+    }
+    let group_roots: Vec<usize> = {
+        let mut roots: Vec<usize> = groups.keys().copied().collect();
+        roots.sort();
+        roots
+    };
+    let num_groups = group_roots.len();
+
+    // Step 2: Build group-level adjacency (non-anchor cross-domain edges).
+    // Two groups are adjacent if any domain in one group has a non-anchor
+    // cross-domain edge to any domain in the other group.
+    // Build a stable group_of lookup.
+    let domain_to_group: Vec<usize> = (0..n).map(|i| {
+        let root = find_root(&mut uf_parent, i);
+        group_roots.iter().position(|&r| r == root).unwrap()
+    }).collect();
+
+    let mut group_adj: HashMap<usize, HashSet<usize>> = HashMap::new();
+    for gi in 0..num_groups {
+        group_adj.entry(gi).or_default();
+    }
+
+    // For group-level adjacency, use only non-anchor cross-domain edges.
+    for (di, neighbors) in adj {
+        let gi = domain_to_group[*di];
+        for &dj in neighbors {
+            let gj = domain_to_group[dj];
+            if gi != gj {
+                group_adj.entry(gi).or_default().insert(gj);
+                group_adj.entry(gj).or_default().insert(gi);
+            }
+        }
+    }
+
+    // Step 3: Assign groups to columns using BFS.
+    let mut group_col: Vec<Option<usize>> = vec![None; num_groups];
+
+    // Find hub group (highest degree in group-level cross-domain graph).
+    let hub_group = (0..num_groups)
+        .max_by_key(|&gi| group_adj.get(&gi).map_or(0, |s| s.len()))
         .unwrap_or(0);
 
     // If hub has no cross-domain edges, put everything in column 0.
-    if adj.get(&hub).map_or(0, |s| s.len()) == 0 {
+    if group_adj.get(&hub_group).map_or(0, |s| s.len()) == 0 {
         return vec![(0..n).collect()];
     }
 
-    // Identify satellites (degree 1 in cross-domain graph).
-    let satellites: HashSet<usize> = (0..n)
-        .filter(|&i| adj.get(&i).map_or(0, |s| s.len()) == 1)
+    // Identify satellite groups (degree 1 in group-level graph).
+    let satellite_groups: HashSet<usize> = (0..num_groups)
+        .filter(|&gi| group_adj.get(&gi).map_or(0, |s| s.len()) == 1)
         .collect();
 
-    // BFS from hub, alternating columns. Skip satellites during BFS.
-    col_assignment[hub] = Some(0);
+    // BFS from hub group, alternating columns. Skip satellites during BFS.
+    group_col[hub_group] = Some(0);
     let mut queue = VecDeque::new();
-    queue.push_back(hub);
+    queue.push_back(hub_group);
 
     while let Some(curr) = queue.pop_front() {
-        let curr_col = col_assignment[curr].unwrap();
-        let next_col = 1 - curr_col; // alternate: 0→1, 1→0
+        let curr_col = group_col[curr].unwrap();
+        let next_col = 1 - curr_col; // alternate: 0->1, 1->0
 
-        if let Some(neighbors) = adj.get(&curr) {
+        if let Some(neighbors) = group_adj.get(&curr) {
             for &nbr in neighbors {
-                if col_assignment[nbr].is_none() && !satellites.contains(&nbr) {
-                    col_assignment[nbr] = Some(next_col);
+                if group_col[nbr].is_none() && !satellite_groups.contains(&nbr) {
+                    group_col[nbr] = Some(next_col);
                     queue.push_back(nbr);
                 }
             }
         }
     }
 
-    // Assign satellites to the same column as their sole neighbor.
-    for &sat in &satellites {
-        if col_assignment[sat].is_none() {
-            if let Some(neighbors) = adj.get(&sat) {
+    // Assign satellite groups to the same column as their sole neighbor.
+    for &sat in &satellite_groups {
+        if group_col[sat].is_none() {
+            if let Some(neighbors) = group_adj.get(&sat) {
                 if let Some(&nbr) = neighbors.iter().next() {
-                    col_assignment[sat] = col_assignment[nbr].or(Some(0));
+                    group_col[sat] = group_col[nbr].or(Some(0));
                 }
             }
         }
     }
 
-    // Unconnected domains go to column 0.
-    for c in col_assignment.iter_mut().take(n) {
-        if c.is_none() {
-            *c = Some(0);
+    // Unconnected groups go to column 0.
+    for gc in group_col.iter_mut() {
+        if gc.is_none() {
+            *gc = Some(0);
+        }
+    }
+
+    // Step 4: Map group column assignments back to individual domains.
+    let mut col_assignment: Vec<Option<usize>> = vec![None; n];
+    for (gi, &root) in group_roots.iter().enumerate() {
+        let col = group_col[gi].unwrap();
+        for &di in &groups[&root] {
+            col_assignment[di] = Some(col);
         }
     }
 
