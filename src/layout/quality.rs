@@ -47,6 +47,16 @@ pub struct QualityReport {
     /// Pairs of edges that share the same vertical channel x-coordinate
     /// while their y-ranges overlap (channel collision).
     pub channel_collisions: Vec<(EdgeId, EdgeId)>,
+    /// Total graph height in pixels (from LayoutResult).
+    pub total_height: f64,
+    /// Total graph width in pixels (from LayoutResult).
+    pub total_width: f64,
+    /// Per-column heights (ordered left to right). Column height is the
+    /// bottom of the lowest domain minus the top of the highest domain.
+    pub column_heights: Vec<f64>,
+    /// Difference between tallest and shortest column heights.
+    /// 0.0 means perfectly balanced columns.
+    pub column_height_imbalance: f64,
 }
 
 impl QualityReport {
@@ -116,6 +126,21 @@ impl QualityReport {
         lines.push(format!(
             "  Mean constraint segs:  {:.1} (3 = H-V-H bracket, 5 = spaghetti)",
             self.mean_constraint_segments
+        ));
+        lines.push(format!(
+            "  Total dimensions:      {:.0}w x {:.0}h px",
+            self.total_width, self.total_height
+        ));
+        lines.push(format!(
+            "  Column heights:        {:?}",
+            self.column_heights
+                .iter()
+                .map(|h| format!("{:.0}", h))
+                .collect::<Vec<_>>()
+        ));
+        lines.push(format!(
+            "  Column height imbal:   {:.0}px (0 = balanced)",
+            self.column_height_imbalance
         ));
 
         for &(a, b) in &self.node_overlaps {
@@ -240,6 +265,17 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
         find_inter_domain_edges_in_intra_corridors(graph, &layout.domains, &parsed);
     let channel_collisions = find_channel_collisions(graph, &parsed);
 
+    let total_height = layout.height;
+    let total_width = layout.width;
+    let column_heights = compute_column_heights(&layout.domains);
+    let column_height_imbalance = if column_heights.len() >= 2 {
+        let max_h = column_heights.iter().copied().fold(0.0_f64, f64::max);
+        let min_h = column_heights.iter().copied().fold(f64::INFINITY, f64::min);
+        max_h - min_h
+    } else {
+        0.0
+    };
+
     QualityReport {
         node_overlaps,
         domain_overlaps,
@@ -257,6 +293,10 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
         domain_contiguity_violations,
         inter_domain_edges_in_intra_corridors,
         channel_collisions,
+        total_height,
+        total_width,
+        column_heights,
+        column_height_imbalance,
     }
 }
 
@@ -970,6 +1010,60 @@ fn compute_min_node_gap(nodes: &[NodeLayout]) -> f64 {
         }
     }
     min_gap
+}
+
+/// Compute per-column heights from domain layouts.
+///
+/// Clusters domains into columns by x-center (within 100px tolerance),
+/// then computes each column's height as the span from the topmost domain
+/// to the bottommost domain within that column.
+fn compute_column_heights(domains: &[DomainLayout]) -> Vec<f64> {
+    if domains.is_empty() {
+        return Vec::new();
+    }
+
+    // Cluster domains by x-center.
+    let mut col_centers: Vec<f64> = Vec::new();
+    for dl in domains {
+        let cx = dl.x + dl.width / 2.0;
+        let found = col_centers.iter().any(|&c| (c - cx).abs() < 100.0);
+        if !found {
+            col_centers.push(cx);
+        }
+    }
+    col_centers.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let assign_column = |cx: f64| -> usize {
+        col_centers
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                (cx - **a).abs().partial_cmp(&(cx - **b).abs()).unwrap()
+            })
+            .map(|(i, _)| i)
+            .unwrap_or(0)
+    };
+
+    let num_cols = col_centers.len().max(1);
+    let mut col_min_y = vec![f64::INFINITY; num_cols];
+    let mut col_max_y = vec![f64::NEG_INFINITY; num_cols];
+
+    for dl in domains {
+        let cx = dl.x + dl.width / 2.0;
+        let col = assign_column(cx);
+        col_min_y[col] = col_min_y[col].min(dl.y);
+        col_max_y[col] = col_max_y[col].max(dl.y + dl.height);
+    }
+
+    (0..num_cols)
+        .map(|c| {
+            if col_min_y[c].is_finite() && col_max_y[c].is_finite() {
+                (col_max_y[c] - col_min_y[c]).max(0.0)
+            } else {
+                0.0
+            }
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

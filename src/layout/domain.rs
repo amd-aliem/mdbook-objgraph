@@ -411,17 +411,6 @@ fn assign_columns(
         }
     }
 
-    // Assign satellite groups to the same column as their sole neighbor.
-    for &sat in &satellite_groups {
-        if group_col[sat].is_none() {
-            if let Some(neighbors) = group_adj.get(&sat) {
-                if let Some(&nbr) = neighbors.iter().next() {
-                    group_col[sat] = group_col[nbr].or(Some(0));
-                }
-            }
-        }
-    }
-
     // Unconnected groups go to column 0.
     for gc in group_col.iter_mut() {
         if gc.is_none() {
@@ -429,7 +418,64 @@ fn assign_columns(
         }
     }
 
-    // Step 4: Map group column assignments back to individual domains.
+    // Step 4: Compute estimated group heights for balance optimization.
+    // Group height = sum of estimated domain heights for all domains in the group.
+    let group_heights: Vec<f64> = (0..num_groups)
+        .map(|gi| {
+            let root = group_roots[gi];
+            groups[&root]
+                .iter()
+                .map(|&di| domain_layouts[di].height)
+                .sum::<f64>()
+        })
+        .collect();
+
+    // Step 5: Assign satellite groups to whichever column minimizes the
+    // maximum column height, rather than always placing them with their
+    // sole neighbor. This balances column heights for a more compact layout.
+    //
+    // First compute baseline column heights from non-satellite groups.
+    let num_cols = 2; // We use a 2-column layout.
+    let mut col_heights = vec![0.0_f64; num_cols];
+    for gi in 0..num_groups {
+        if !satellite_groups.contains(&gi) {
+            if let Some(col) = group_col[gi] {
+                if col < num_cols {
+                    col_heights[col] += group_heights[gi];
+                }
+            }
+        }
+    }
+
+    // Sort satellites by height descending (largest-first-fit heuristic).
+    let mut sorted_satellites: Vec<usize> = satellite_groups.iter().copied().collect();
+    sorted_satellites.sort_by(|&a, &b| {
+        group_heights[b]
+            .partial_cmp(&group_heights[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Assign each satellite to the column that minimizes max height.
+    for sat in sorted_satellites {
+        // Find the best column: the one that produces the smallest max height.
+        let mut best_col = 0usize;
+        let mut best_max_height = f64::INFINITY;
+
+        for candidate_col in 0..num_cols {
+            let mut trial = col_heights.clone();
+            trial[candidate_col] += group_heights[sat];
+            let max_h = trial.iter().copied().fold(0.0_f64, f64::max);
+            if max_h < best_max_height {
+                best_max_height = max_h;
+                best_col = candidate_col;
+            }
+        }
+
+        group_col[sat] = Some(best_col);
+        col_heights[best_col] += group_heights[sat];
+    }
+
+    // Step 6: Map group column assignments back to individual domains.
     let mut col_assignment: Vec<Option<usize>> = vec![None; n];
     for (gi, &root) in group_roots.iter().enumerate() {
         let col = group_col[gi].unwrap();

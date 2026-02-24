@@ -157,3 +157,21 @@ fn sev_snp_no_channel_collisions() {
     );
 }
 
+#[test]
+fn sev_snp_column_height_balance() {
+    let input = include_str!("sev_snp_input.obgraph");
+    let report = run_quality(input);
+    eprintln!(
+        "Column heights: {:?}, imbalance: {:.0}px",
+        report.column_heights, report.column_height_imbalance
+    );
+    // Column heights should be reasonably balanced (within 200px).
+    // Before the balance optimization, imbalance was ~500px+.
+    assert!(
+        report.column_height_imbalance < 200.0,
+        "Column heights should be balanced: imbalance {:.0}px (threshold 200px), heights: {:?}",
+        report.column_height_imbalance,
+        report.column_heights,
+    );
+}
+
