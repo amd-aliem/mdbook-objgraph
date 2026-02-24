@@ -697,13 +697,6 @@ fn reposition_to_columns(
                 continue;
             }
 
-            // Current min-x of member nodes.
-            let current_min_x = domain
-                .members
-                .iter()
-                .map(|&nid| node_layouts[nid.index()].x)
-                .fold(f64::INFINITY, f64::min);
-
             // Domain natural width (max node width).
             let max_node_width = domain
                 .members
@@ -715,13 +708,15 @@ fn reposition_to_columns(
             // Centering offset within the column.
             let centering_offset = (col_widths[col_idx] - domain_natural_width).max(0.0) / 2.0;
 
-            // Target min-x for nodes inside this domain.
-            let target_min_x = col_x[col_idx] + lr_pad + centering_offset;
-            let delta_x = target_min_x - current_min_x;
+            // Target x for nodes inside this domain.
+            // All nodes share uniform width, so align them to the same x.
+            // Using direct assignment (not delta shift) ensures nodes that
+            // were at different x positions after Brandes-Kopf end up aligned.
+            let target_x = col_x[col_idx] + lr_pad + centering_offset;
 
-            // Shift all member nodes.
+            // Set all member nodes to the target x position.
             for &nid in &domain.members {
-                node_layouts[nid.index()].x += delta_x;
+                node_layouts[nid.index()].x = target_x;
             }
         }
     }
