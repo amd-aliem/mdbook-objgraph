@@ -1327,10 +1327,11 @@ pub fn route_label_position(route: &Route) -> (f64, f64, &'static str) {
 
 /// Convert a Route to an EdgePath.  If `label_text` is Some, an EdgeLabel is
 /// placed along the first vertical corridor segment, offset 4px horizontally.
-pub fn route_to_edge_path(route: &Route, label_text: Option<String>) -> EdgePath {
+/// `font_size` specifies the label font size for bounding-box estimation.
+pub fn route_to_edge_path(route: &Route, label_text: Option<String>, font_size: f64) -> EdgePath {
     let label = label_text.map(|text| {
         let (x, y, anchor) = route_label_position(route);
-        EdgeLabel { text, x, y, anchor }
+        EdgeLabel { text, x, y, anchor, font_size }
     });
     EdgePath {
         edge_id: route.edge_id,
@@ -2022,7 +2023,7 @@ mod tests {
             }],
         };
 
-        let edge_path = route_to_edge_path(&route, None);
+        let edge_path = route_to_edge_path(&route, None, 8.0);
         assert_eq!(edge_path.edge_id, EdgeId(42));
         assert_eq!(edge_path.svg_path, "M10,0 L10,50");
     }

@@ -57,6 +57,9 @@ pub const PILL_HEIGHT: f64 = 20.0;
 pub const PILL_CONTENT_PAD: f64 = 12.0;
 /// Character width estimate for monospace text.
 pub const CHAR_WIDTH: f64 = 5.5;
+/// Character width factor for proportional (sans-serif) label text.
+/// Average character width ≈ font_size × this factor.
+pub const LABEL_CHAR_WIDTH_FACTOR: f64 = 0.55;
 /// Global margin around the entire SVG.
 pub const GLOBAL_MARGIN: f64 = 20.0;
 
@@ -93,6 +96,9 @@ pub struct LayoutResult {
     pub property_order: crossing::PropertyOrder,
     pub width: f64,
     pub height: f64,
+    /// Extra horizontal offset added to the SVG translate to accommodate edge
+    /// labels that extend past the left edge of the content area.
+    pub content_offset_x: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -184,6 +190,27 @@ pub struct EdgeLabel {
     pub y: f64,
     /// "start", "middle", or "end"
     pub anchor: &'static str,
+    /// Font size in pixels (needed for bounding box estimation).
+    pub font_size: f64,
+}
+
+impl EdgeLabel {
+    /// Estimate the rendered pixel width of the label text.
+    pub fn estimate_text_width(&self) -> f64 {
+        self.text.len() as f64 * self.font_size * LABEL_CHAR_WIDTH_FACTOR
+    }
+
+    /// Returns the (left_x, right_x) bounding box of the label in layout
+    /// coordinates, based on text-anchor and estimated text width.
+    pub fn bounding_x(&self) -> (f64, f64) {
+        let w = self.estimate_text_width();
+        match self.anchor {
+            "start" => (self.x, self.x + w),
+            "end" => (self.x - w, self.x),
+            // "middle"
+            _ => (self.x - w / 2.0, self.x + w / 2.0),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -475,9 +502,13 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     for route in &routes {
         let edge = &graph.edges[route.edge_id.index()];
         let label_text = edge_operation(edge);
+        let label_font_size = match edge {
+            Edge::Anchor { .. } => ANCHOR_LABEL_SIZE,
+            Edge::Constraint { .. } | Edge::DerivInput { .. } => CONSTRAINT_LABEL_SIZE,
+        };
         let label = label_text.map(|text| {
             let (x, y, anchor) = routing::route_label_position(route);
-            EdgeLabel { text, x, y, anchor }
+            EdgeLabel { text, x, y, anchor, font_size: label_font_size }
         });
         let svg_path = routing::route_to_svg_path(route);
         let edge_path = EdgePath {
@@ -528,8 +559,21 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         }
     }
 
-    // Compute overall dimensions
-    let (width, height) = compute_dimensions(&node_layouts, &deriv_layouts, &domain_layouts);
+    // Collect all edge labels for dimension computation.
+    let all_labels: Vec<&EdgeLabel> = anchors
+        .iter()
+        .chain(intra_domain_constraints.iter())
+        .filter_map(|ep| ep.label.as_ref())
+        .chain(
+            cross_domain_constraints
+                .iter()
+                .filter_map(|cdp| cdp.full_path.label.as_ref()),
+        )
+        .collect();
+
+    // Compute overall dimensions, accounting for label overflow.
+    let (width, height, content_offset_x) =
+        compute_dimensions(&node_layouts, &deriv_layouts, &domain_layouts, &all_labels);
 
     Ok(LayoutResult {
         nodes: node_layouts,
@@ -542,6 +586,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         property_order: prop_order,
         width,
         height,
+        content_offset_x,
     })
 }
 
@@ -605,27 +650,212 @@ fn normalize_positions(
     }
 }
 
-/// Compute the overall SVG dimensions from all layout elements.
+/// Compute the overall SVG dimensions from all layout elements, accounting for
+/// edge labels that may extend beyond the content bounding box.
+///
+/// Returns `(width, height, content_offset_x)` where `content_offset_x` is the
+/// extra horizontal shift needed in the SVG translate to accommodate labels that
+/// extend past the left edge of the content area.
 fn compute_dimensions(
     node_layouts: &[NodeLayout],
     deriv_layouts: &[DerivLayout],
     domain_layouts: &[DomainLayout],
-) -> (f64, f64) {
-    let mut max_x = 0.0_f64;
+    labels: &[&EdgeLabel],
+) -> (f64, f64, f64) {
+    // Content bounding box (nodes, derivations, domains).
+    let mut content_max_x = 0.0_f64;
     let mut max_y = 0.0_f64;
 
     for nl in node_layouts {
-        max_x = max_x.max(nl.x + nl.width);
+        content_max_x = content_max_x.max(nl.x + nl.width);
         max_y = max_y.max(nl.y + nl.height);
     }
     for dl in deriv_layouts {
-        max_x = max_x.max(dl.x + dl.width);
+        content_max_x = content_max_x.max(dl.x + dl.width);
         max_y = max_y.max(dl.y + dl.height);
     }
     for dl in domain_layouts {
-        max_x = max_x.max(dl.x + dl.width);
+        content_max_x = content_max_x.max(dl.x + dl.width);
         max_y = max_y.max(dl.y + dl.height);
     }
 
-    (max_x + GLOBAL_MARGIN * 2.0, max_y + GLOBAL_MARGIN * 2.0)
+    // Compute the horizontal extent of all edge labels.
+    let mut label_min_x = 0.0_f64;
+    let mut label_max_x = content_max_x;
+    for lbl in labels {
+        let (left, right) = lbl.bounding_x();
+        label_min_x = label_min_x.min(left);
+        label_max_x = label_max_x.max(right);
+    }
+
+    // If labels extend past the left edge, we need extra offset.
+    // The content_offset_x shifts the translate rightward so the leftmost
+    // label fits inside the global margin.
+    let content_offset_x = if label_min_x < 0.0 { -label_min_x } else { 0.0 };
+
+    // Total width accounts for: global margin on each side, content width,
+    // plus any extra space needed for labels on either side.
+    let effective_max_x = label_max_x.max(content_max_x);
+    let width = effective_max_x + content_offset_x + GLOBAL_MARGIN * 2.0;
+    let height = max_y + GLOBAL_MARGIN * 2.0;
+
+    (width, height, content_offset_x)
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn label_bounding_x_start_anchor() {
+        let lbl = EdgeLabel {
+            text: "hello".into(),
+            x: 100.0,
+            y: 50.0,
+            anchor: "start",
+            font_size: 10.0,
+        };
+        let (left, right) = lbl.bounding_x();
+        assert!((left - 100.0).abs() < 1e-9);
+        // 5 chars * 10px * 0.55 = 27.5
+        assert!((right - 127.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn label_bounding_x_end_anchor() {
+        let lbl = EdgeLabel {
+            text: "hello".into(),
+            x: 30.0,
+            y: 50.0,
+            anchor: "end",
+            font_size: 10.0,
+        };
+        let (left, right) = lbl.bounding_x();
+        // 5 * 10 * 0.55 = 27.5 → left = 30 - 27.5 = 2.5
+        assert!((left - 2.5).abs() < 1e-9);
+        assert!((right - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn label_bounding_x_middle_anchor() {
+        let lbl = EdgeLabel {
+            text: "test".into(),
+            x: 50.0,
+            y: 50.0,
+            anchor: "middle",
+            font_size: 8.0,
+        };
+        let (left, right) = lbl.bounding_x();
+        // 4 * 8 * 0.55 = 17.6 → half = 8.8
+        assert!((left - 41.2).abs() < 1e-9);
+        assert!((right - 58.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dimensions_no_labels_unchanged() {
+        let nodes = vec![NodeLayout {
+            id: NodeId(0),
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 50.0,
+        }];
+        let (w, h, offset) = compute_dimensions(&nodes, &[], &[], &[]);
+        // width = 100 + 2*20 = 140, height = 50 + 40 = 90, no offset
+        assert!((w - 140.0).abs() < 1e-9);
+        assert!((h - 90.0).abs() < 1e-9);
+        assert!((offset).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dimensions_label_overflows_left() {
+        let nodes = vec![NodeLayout {
+            id: NodeId(0),
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 50.0,
+        }];
+        // Label at x=10, text-anchor="end", text width = 5*8*0.55 = 22
+        // Left edge = 10 - 22 = -12
+        let lbl = EdgeLabel {
+            text: "hello".into(),
+            x: 10.0,
+            y: 25.0,
+            anchor: "end",
+            font_size: 8.0,
+        };
+        let labels = vec![&lbl];
+        let (w, h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
+        // content_offset_x = 12 (to compensate for -12 left overflow)
+        assert!((offset - 12.0).abs() < 1e-9);
+        // width = max(100, 100) + 12 + 40 = 152
+        assert!((w - 152.0).abs() < 1e-9);
+        assert!((h - 90.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dimensions_label_overflows_right() {
+        let nodes = vec![NodeLayout {
+            id: NodeId(0),
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 50.0,
+        }];
+        // Label at x=90, text-anchor="start", text width = 10*6*0.55 = 33
+        // Right edge = 90 + 33 = 123 (exceeds content_max_x of 100)
+        let lbl = EdgeLabel {
+            text: "0123456789".into(),
+            x: 90.0,
+            y: 25.0,
+            anchor: "start",
+            font_size: 6.0,
+        };
+        let labels = vec![&lbl];
+        let (w, _h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
+        // No left overflow, so offset = 0
+        assert!((offset).abs() < 1e-9);
+        // width = max(123, 100) + 0 + 40 = 163
+        assert!((w - 163.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dimensions_label_overflows_both_sides() {
+        let nodes = vec![NodeLayout {
+            id: NodeId(0),
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 50.0,
+        }];
+        // Left-overflow label: x=5, anchor="end", 10 chars * 6px * 0.55 = 33
+        // Left edge = 5 - 33 = -28
+        let lbl_left = EdgeLabel {
+            text: "0123456789".into(),
+            x: 5.0,
+            y: 25.0,
+            anchor: "end",
+            font_size: 6.0,
+        };
+        // Right-overflow label: x=90, anchor="start", 10 chars * 6px * 0.55 = 33
+        // Right edge = 90 + 33 = 123
+        let lbl_right = EdgeLabel {
+            text: "0123456789".into(),
+            x: 90.0,
+            y: 25.0,
+            anchor: "start",
+            font_size: 6.0,
+        };
+        let labels = vec![&lbl_left, &lbl_right];
+        let (w, _h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
+        // content_offset_x = 28
+        assert!((offset - 28.0).abs() < 1e-9);
+        // width = max(123, 100) + 28 + 40 = 191
+        assert!((w - 191.0).abs() < 1e-9);
+    }
 }

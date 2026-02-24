@@ -51,11 +51,16 @@ pub fn generate_svg(graph: &Graph, layout: &LayoutResult, state: &StateResult) -
     // Reusable definitions (markers, filters)
     write_defs(&mut out);
 
-    // Global margin: translate all content inward
+    // Global margin: translate all content inward.
+    // content_offset_x adds extra horizontal shift when edge labels extend
+    // past the left edge of the content area.
+    let margin_x = crate::layout::GLOBAL_MARGIN + layout.content_offset_x;
+    let margin_y = crate::layout::GLOBAL_MARGIN;
     writeln!(
         out,
-        r#"    <g transform="translate({m}, {m})">"#,
-        m = crate::layout::GLOBAL_MARGIN
+        r#"    <g transform="translate({mx}, {my})">"#,
+        mx = margin_x,
+        my = margin_y,
     )
     .unwrap();
 
@@ -816,6 +821,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
+            content_offset_x: 0.0,
         };
 
         (graph, layout, trust_state)
@@ -942,6 +948,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 200.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1078,6 +1085,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 400.0,
             height: 200.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1167,6 +1175,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1296,6 +1305,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 100.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1421,6 +1431,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 200.0,
             height: 200.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1512,6 +1523,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 400.0,
             height: 200.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
@@ -1586,6 +1598,7 @@ mod tests {
             property_order: PropertyOrder::from_graph(&graph),
             width: 300.0,
             height: 100.0,
+            content_offset_x: 0.0,
         };
 
         let svg = generate_svg(&graph, &layout, &trust_state);
