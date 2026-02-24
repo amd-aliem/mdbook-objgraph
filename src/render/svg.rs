@@ -138,8 +138,13 @@ fn write_domains(out: &mut String, layout: &LayoutResult) {
 /// Determine whether an edge is valid based on state propagation results.
 ///
 /// - Anchor: valid if parent is anchored+verified.
-/// - Constraint: valid if source node is anchored+verified and source prop is constrained.
-/// - DerivInput: valid if source node is anchored+verified and source prop is constrained.
+/// - Constraint: valid if source node is anchored and source prop is constrained.
+/// - DerivInput: valid if source node is anchored and source prop is constrained.
+///
+/// Note: constraints and derivation inputs require only "anchored" (not
+/// "verified") on the source node, matching the propagation algorithm.
+/// The stronger "verified" gate applies only to anchor edges (child
+/// anchoring).
 fn is_edge_valid(edge_id: EdgeId, graph: &Graph, state: &StateResult) -> bool {
     let edge = &graph.edges[edge_id.index()];
     match edge {
@@ -149,13 +154,11 @@ fn is_edge_valid(edge_id: EdgeId, graph: &Graph, state: &StateResult) -> bool {
         Edge::Constraint { source_prop, .. } => {
             let src_node_id = graph.properties[source_prop.index()].node;
             state.is_node_anchored(src_node_id)
-                && state.is_node_verified(graph, src_node_id)
                 && state.is_prop_constrained(*source_prop)
         }
         Edge::DerivInput { source_prop, .. } => {
             let src_node_id = graph.properties[source_prop.index()].node;
             state.is_node_anchored(src_node_id)
-                && state.is_node_verified(graph, src_node_id)
                 && state.is_prop_constrained(*source_prop)
         }
     }

@@ -107,8 +107,14 @@ pub fn propagate(graph: &Graph) -> StateResult {
             let prop = &graph.properties[p.index()];
             let nid = prop.node;
 
-            // Constraints and derivations only fire from anchored+verified nodes.
-            if verified(nid, &node_anchored, &constrained_eff) {
+            // Constraints and derivations only fire from anchored nodes.
+            // Note: we require anchored (not verified) so that same-node
+            // constraints on trust-root nodes can bootstrap — e.g.
+            // ARK::issuer <= ARK::subject fires when subject is constrained
+            // and ARK is anchored, even before ARK is fully verified.
+            // The stronger "verified" gate is applied only in the node
+            // phase when anchoring children.
+            if node_anchored.get(&nid).copied().unwrap_or(false) {
                 // Propagate through Constraint edges where p is the source_prop.
                 for &eid in graph.edges_on_prop(p) {
                     if let Edge::Constraint {
@@ -702,5 +708,120 @@ mod tests {
 
         // P10: @constrained annotation → constrained
         assert!(state.is_prop_constrained(p10), "P10 @constrained (annotation)");
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 7: self-referential constraint on anchored root (ARK-style).
+    //
+    // root @anchored:
+    //   P0 (subject)      @constrained
+    //   P1 (issuer)       @critical
+    //   P2 (not_before)   @critical
+    //   P3 (authority_key) @critical
+    //   P4 (subject_key)  @constrained
+    //
+    // Constraints:
+    //   P1 <= P0   (issuer constrained by subject, same node)
+    //   P3 <= P4   (authority_key constrained by subject_key, same node)
+    //
+    // P2 has no constraint, so remains unconstrained.
+    //
+    // Expected: P1 and P3 become constrained. P2 stays unconstrained.
+    // Node is NOT verified (P2 unconstrained), but constraints still fire
+    // because the source node is anchored.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn self_referential_constraint_on_root() {
+        let nodes = vec![node(
+            0,
+            "root",
+            vec![PropId(0), PropId(1), PropId(2), PropId(3), PropId(4)],
+            true,
+        )];
+        let properties = vec![
+            prop(0, 0, "subject", false, true),        // @constrained
+            prop(1, 0, "issuer", true, false),          // @critical
+            prop(2, 0, "not_before", true, false),      // @critical (no constraint)
+            prop(3, 0, "authority_key", true, false),    // @critical
+            prop(4, 0, "subject_key", false, true),     // @constrained
+        ];
+        let edges = vec![
+            Edge::Constraint {
+                source_prop: PropId(0),
+                dest_prop: PropId(1),
+                operation: Some("issuer_match".to_string()),
+            },
+            Edge::Constraint {
+                source_prop: PropId(4),
+                dest_prop: PropId(3),
+                operation: None,
+            },
+        ];
+        let graph = make_graph(nodes, properties, vec![], edges);
+
+        let state = propagate(&graph);
+
+        assert!(state.is_node_anchored(NodeId(0)), "root should be anchored");
+        assert!(
+            state.is_prop_constrained(PropId(0)),
+            "P0 (subject) @constrained → constrained"
+        );
+        assert!(
+            state.is_prop_constrained(PropId(1)),
+            "P1 (issuer) should be constrained via self-referential constraint from P0"
+        );
+        assert!(
+            !state.is_prop_constrained(PropId(2)),
+            "P2 (not_before) has no constraint → unconstrained"
+        );
+        assert!(
+            state.is_prop_constrained(PropId(3)),
+            "P3 (authority_key) should be constrained via self-referential constraint from P4"
+        );
+        assert!(
+            state.is_prop_constrained(PropId(4)),
+            "P4 (subject_key) @constrained → constrained"
+        );
+        // Node is NOT verified because P2 is unconstrained.
+        assert!(
+            !state.is_node_verified(&graph, NodeId(0)),
+            "root should NOT be verified (P2 unconstrained)"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 8: self-referential constraint should NOT fire on non-anchored node.
+    //
+    // A non-anchored node with a same-node constraint should NOT propagate
+    // because constraint firing requires the node to be anchored.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn self_referential_constraint_on_non_anchored_node() {
+        let nodes = vec![node(
+            0,
+            "orphan",
+            vec![PropId(0), PropId(1)],
+            false, // not anchored
+        )];
+        let properties = vec![
+            prop(0, 0, "subject", false, true),   // @constrained (annotation)
+            prop(1, 0, "issuer", true, false),     // @critical
+        ];
+        let edges = vec![Edge::Constraint {
+            source_prop: PropId(0),
+            dest_prop: PropId(1),
+            operation: None,
+        }];
+        let graph = make_graph(nodes, properties, vec![], edges);
+
+        let state = propagate(&graph);
+
+        assert!(!state.is_node_anchored(NodeId(0)), "orphan not anchored");
+        assert!(
+            !state.is_prop_constrained(PropId(1)),
+            "P1 should NOT be constrained — node is not anchored, so constraint does not fire"
+        );
     }
 }
