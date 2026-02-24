@@ -228,21 +228,13 @@ pub fn css() -> &'static str {
 .obgraph-anchor-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 8px;
-  fill: #16a34a;
-  paint-order: stroke;
-  stroke: white;
-  stroke-width: 3px;
-  stroke-linejoin: round;
+  fill: var(--obg-anchor-valid);
 }
 
 .obgraph-constraint-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 6px;
-  fill: #2563eb;
-  paint-order: stroke;
-  stroke: white;
-  stroke-width: 3px;
-  stroke-linejoin: round;
+  fill: var(--obg-constraint-valid);
 }
 "#
 }

@@ -177,7 +177,7 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
         if let Some(lbl) = &ep.label {
             writeln!(
                 out,
-                r#"        <text class="obgraph-anchor-label" x="{x}" y="{y}" text-anchor="{anchor}">{text}</text>"#,
+                r#"        <text class="obgraph-anchor-label" x="{x}" y="{y}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"#,
                 x = lbl.x, y = lbl.y, anchor = lbl.anchor, text = escape_xml(&lbl.text)
             ).unwrap();
         }
@@ -205,7 +205,7 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
         if let Some(lbl) = &ep.label {
             writeln!(
                 out,
-                r#"        <text class="obgraph-constraint-label" x="{x}" y="{y}" text-anchor="{anchor}">{text}</text>"#,
+                r#"        <text class="obgraph-constraint-label" x="{x}" y="{y}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"#,
                 x = lbl.x, y = lbl.y, anchor = lbl.anchor, text = escape_xml(&lbl.text)
             ).unwrap();
         }
