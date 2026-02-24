@@ -60,6 +60,12 @@ pub const CHAR_WIDTH: f64 = 5.5;
 /// Character width factor for proportional (sans-serif) label text.
 /// Average character width ≈ font_size × this factor.
 pub const LABEL_CHAR_WIDTH_FACTOR: f64 = 0.55;
+/// Extra horizontal padding added to each side of label bounding boxes when
+/// computing the SVG canvas dimensions.  This compensates for the inherent
+/// inaccuracy of the character-counting text width estimate -- proportional
+/// fonts can render wider than `len * font_size * LABEL_CHAR_WIDTH_FACTOR`,
+/// particularly for labels containing wide characters (m, w, _).
+pub const LABEL_OVERFLOW_PAD: f64 = 8.0;
 /// Global margin around the entire SVG.
 pub const GLOBAL_MARGIN: f64 = 20.0;
 
@@ -758,13 +764,15 @@ fn compute_dimensions(
         max_y = max_y.max(dl.y + dl.height);
     }
 
-    // Compute the horizontal extent of all edge labels.
+    // Compute the horizontal extent of all edge labels, padded to
+    // compensate for text-width estimation error (LABEL_OVERFLOW_PAD on
+    // each side of every label bounding box).
     let mut label_min_x = 0.0_f64;
     let mut label_max_x = content_max_x;
     for lbl in labels {
         let (left, right) = lbl.bounding_x();
-        label_min_x = label_min_x.min(left);
-        label_max_x = label_max_x.max(right);
+        label_min_x = label_min_x.min(left - LABEL_OVERFLOW_PAD);
+        label_max_x = label_max_x.max(right + LABEL_OVERFLOW_PAD);
     }
 
     // If labels extend past the left edge, we need extra offset.
@@ -870,10 +878,11 @@ mod tests {
         };
         let labels = vec![&lbl];
         let (w, h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
-        // content_offset_x = 12 (to compensate for -12 left overflow)
-        assert!((offset - 12.0).abs() < 1e-9);
-        // width = max(100, 100) + 12 + 40 = 152
-        assert!((w - 152.0).abs() < 1e-9);
+        // Label bounding_x = (-12, 10), padded = (-20, 18)
+        // content_offset_x = 20 (to compensate for -20 padded left overflow)
+        assert!((offset - 20.0).abs() < 1e-9);
+        // width = max(100, 100) + 20 + 40 = 160
+        assert!((w - 160.0).abs() < 1e-9);
         assert!((h - 90.0).abs() < 1e-9);
     }
 
@@ -897,10 +906,11 @@ mod tests {
         };
         let labels = vec![&lbl];
         let (w, _h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
-        // No left overflow, so offset = 0
+        // Label bounding_x = (90, 123), padded right = 131
+        // No left overflow (padded left = 82 > 0), so offset = 0
         assert!((offset).abs() < 1e-9);
-        // width = max(123, 100) + 0 + 40 = 163
-        assert!((w - 163.0).abs() < 1e-9);
+        // width = max(131, 100) + 0 + 40 = 171
+        assert!((w - 171.0).abs() < 1e-9);
     }
 
     #[test]
@@ -932,9 +942,10 @@ mod tests {
         };
         let labels = vec![&lbl_left, &lbl_right];
         let (w, _h, offset) = compute_dimensions(&nodes, &[], &[], &labels);
-        // content_offset_x = 28
-        assert!((offset - 28.0).abs() < 1e-9);
-        // width = max(123, 100) + 28 + 40 = 191
-        assert!((w - 191.0).abs() < 1e-9);
+        // Left label padded: (-36, 13), right label padded: (82, 131)
+        // content_offset_x = 36
+        assert!((offset - 36.0).abs() < 1e-9);
+        // width = max(131, 100) + 36 + 40 = 207
+        assert!((w - 207.0).abs() < 1e-9);
     }
 }
