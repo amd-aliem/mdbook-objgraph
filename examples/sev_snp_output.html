@@ -5,8 +5,8 @@
 <h1>SEV-SNP + TPM Attestation Graph</h1>
 <div class="obgraph-container">
   <svg xmlns="http://www.w3.org/2000/svg"
-       viewBox="0 0 500 1964"
-       width="500" height="1964"
+       viewBox="0 0 500 1680"
+       width="500" height="1680"
        class="obgraph">
     <style>
 .obgraph {
@@ -280,11 +280,11 @@
     <g transform="translate(20, 20)">
     <g class="obgraph-domains">
       <g class="obgraph-domain" data-domain="0">
-        <rect class="obgraph-domain-bg" x="272" y="0" width="188" height="260" rx="10"/>
+        <rect class="obgraph-domain-bg" x="272" y="0" width="188" height="192" rx="10"/>
         <text class="obgraph-domain-label" x="366" y="16" text-anchor="middle" dominant-baseline="central">Verifier</text>
       </g>
       <g class="obgraph-domain" data-domain="1">
-        <rect class="obgraph-domain-bg" x="16" y="328" width="188" height="916" rx="10"/>
+        <rect class="obgraph-domain-bg" x="16" y="328" width="188" height="712" rx="10"/>
         <text class="obgraph-domain-label" x="110" y="344" text-anchor="middle" dominant-baseline="central">AMD SEV-SNP</text>
       </g>
       <g class="obgraph-domain" data-domain="2">
@@ -296,117 +296,117 @@
         <text class="obgraph-domain-label" x="110" y="156" text-anchor="middle" dominant-baseline="central">NIST</text>
       </g>
       <g class="obgraph-domain" data-domain="4">
-        <rect class="obgraph-domain-bg" x="272" y="288" width="188" height="944" rx="10"/>
-        <text class="obgraph-domain-label" x="366" y="304" text-anchor="middle" dominant-baseline="central">TPM</text>
+        <rect class="obgraph-domain-bg" x="272" y="220" width="188" height="672" rx="10"/>
+        <text class="obgraph-domain-label" x="366" y="236" text-anchor="middle" dominant-baseline="central">TPM</text>
       </g>
       <g class="obgraph-domain" data-domain="5">
-        <rect class="obgraph-domain-bg" x="16" y="1272" width="188" height="652" rx="10"/>
-        <text class="obgraph-domain-label" x="110" y="1288" text-anchor="middle" dominant-baseline="central">Guest vTPM</text>
+        <rect class="obgraph-domain-bg" x="16" y="1068" width="188" height="572" rx="10"/>
+        <text class="obgraph-domain-label" x="110" y="1084" text-anchor="middle" dominant-baseline="central">Guest vTPM</text>
       </g>
     </g>
     <g class="obgraph-edges">
       <g class="obgraph-anchors">
-        <path class="obgraph-anchor-invalid" d="M110,492 L110,582" data-edge="0" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="537" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M110,740 L110,830" data-edge="1" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="785" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M110,1008 L110,1098" data-edge="2" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1053" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M366,452 L366,542" data-edge="3" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="370" y="497" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M366,700 L366,790" data-edge="4" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="370" y="745" fill="#22c55e" text-anchor="start" dominant-baseline="central">make_credential</text>
-        <path class="obgraph-anchor-invalid" d="M366,848 L366,938" data-edge="5" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="370" y="893" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M366,1056 L366,1146" data-edge="6" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="370" y="1101" fill="#22c55e" text-anchor="start" dominant-baseline="central">replay_validate</text>
-        <path class="obgraph-anchor-invalid" d="M110,1216 L110,1298" data-edge="7" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1257" fill="#22c55e" text-anchor="start" dominant-baseline="central">hash</text>
-        <path class="obgraph-anchor-invalid" d="M110,1376 L110,1418" data-edge="8" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1397" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M110,1536 L110,1578" data-edge="9" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1557" fill="#22c55e" text-anchor="start" dominant-baseline="central">make_credential</text>
-        <path class="obgraph-anchor-invalid" d="M110,1636 L110,1678" data-edge="10" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1657" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
-        <path class="obgraph-anchor-invalid" d="M110,1796 L110,1838" data-edge="11" marker-end="url(#arrow-anchor-invalid)"/>
-        <text class="obgraph-anchor-label" x="114" y="1817" fill="#22c55e" text-anchor="start" dominant-baseline="central">replay_validate</text>
+        <path class="obgraph-anchor-invalid" d="M110,492 L110,514" data-edge="0" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="503" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M110,672 L110,694" data-edge="1" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="683" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M110,872 L110,894" data-edge="2" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="883" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M366,384 L366,406" data-edge="3" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="370" y="395" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M366,564 L366,586" data-edge="4" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="370" y="575" fill="#22c55e" text-anchor="start" dominant-baseline="central">make_credential</text>
+        <path class="obgraph-anchor-invalid" d="M366,644 L366,666" data-edge="5" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="370" y="655" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M366,784 L366,806" data-edge="6" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="370" y="795" fill="#22c55e" text-anchor="start" dominant-baseline="central">replay_validate</text>
+        <path class="obgraph-anchor-invalid" d="M110,1012 L110,1094" data-edge="7" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="1053" fill="#22c55e" text-anchor="start" dominant-baseline="central">hash</text>
+        <path class="obgraph-anchor-invalid" d="M110,1172 L110,1194" data-edge="8" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="1183" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M110,1312 L110,1334" data-edge="9" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="1323" fill="#22c55e" text-anchor="start" dominant-baseline="central">make_credential</text>
+        <path class="obgraph-anchor-invalid" d="M110,1392 L110,1414" data-edge="10" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="1403" fill="#22c55e" text-anchor="start" dominant-baseline="central">sign</text>
+        <path class="obgraph-anchor-invalid" d="M110,1532 L110,1554" data-edge="11" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="114" y="1543" fill="#22c55e" text-anchor="start" dominant-baseline="central">replay_validate</text>
       </g>
       <g class="obgraph-constraints-intra">
-        <path class="obgraph-constraint" d="M32,74 L8,74 L8,202 L97,202 L97,274" data-edge="42" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint" d="M32,214 L8,214 L8,256 L97,256 L97,274" data-edge="43" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint" d="M32,74 L8,74 L8,168 L97,168 L97,274" data-edge="42" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint" d="M32,214 L8,214 L8,238 L97,238 L97,274" data-edge="43" marker-end="url(#arrow-constraint-valid)"/>
         <path class="obgraph-constraint-invalid" d="M188,402 L196,402 L196,422 L194,422" data-edge="12" marker-end="url(#arrow-constraint-invalid)"/>
         <text class="obgraph-constraint-label" x="200" y="412" fill="#60a5fa" text-anchor="start" dominant-baseline="central">self_signed</text>
-        <path class="obgraph-constraint-invalid" d="M32,402 L24,402 L24,650 L26,650" data-edge="15" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-invalid" d="M188,442 L196,442 L196,690 L194,690" data-edge="16" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="200" y="566" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M188,630 L200,630 L200,898 L194,898" data-edge="19" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-invalid" d="M32,670 L24,670 L24,938 L26,938" data-edge="20" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="20" y="804" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M188,918 L196,918 L196,1206 L194,1206" data-edge="23" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="200" y="1062" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M32,998 L24,998 L24,1146 L26,1146" data-edge="24" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-invalid" d="M444,362 L452,362 L452,382 L450,382" data-edge="25" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="456" y="372" fill="#60a5fa" text-anchor="start" dominant-baseline="central">self_signed</text>
-        <path class="obgraph-constraint-invalid" d="M288,362 L280,362 L280,610 L282,610" data-edge="28" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-invalid" d="M444,402 L452,402 L452,650 L450,650" data-edge="29" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="456" y="526" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M444,630 L456,630 L456,838 L450,838" data-edge="32" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="460" y="734" fill="#60a5fa" text-anchor="start" dominant-baseline="central">make_credential</text>
-        <path class="obgraph-constraint-invalid" d="M288,838 L280,838 L280,1046 L282,1046" data-edge="33" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="276" y="942" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M288,1006 L284,1006 L284,1184" data-edge="34" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="280" y="1095" fill="#60a5fa" text-anchor="end" dominant-baseline="central">replay_validates</text>
-        <path class="obgraph-constraint-invalid" d="M188,1366 L196,1366 L196,1526 L194,1526" data-edge="35" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="200" y="1446" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M32,1506 L24,1506 L24,1622 L26,1622" data-edge="36" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="20" y="1564" fill="#60a5fa" text-anchor="end" dominant-baseline="central">make_credential</text>
-        <path class="obgraph-constraint-invalid" d="M32,1630 L24,1630 L24,1786 L26,1786" data-edge="37" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="20" y="1708" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M32,1746 L28,1746 L28,1880" data-edge="38" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="24" y="1813" fill="#60a5fa" text-anchor="end" dominant-baseline="central">replay_validates</text>
+        <path class="obgraph-constraint-invalid" d="M32,402 L24,402 L24,582 L26,582" data-edge="15" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-invalid" d="M188,442 L196,442 L196,622 L194,622" data-edge="16" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="200" y="532" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M188,562 L200,562 L200,762 L194,762" data-edge="19" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-invalid" d="M32,602 L24,602 L24,802 L26,802" data-edge="20" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="20" y="702" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M188,782 L196,782 L196,1002 L194,1002" data-edge="23" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="200" y="892" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M32,862 L24,862 L24,942 L26,942" data-edge="24" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-invalid" d="M444,294 L452,294 L452,314 L450,314" data-edge="25" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="456" y="304" fill="#60a5fa" text-anchor="start" dominant-baseline="central">self_signed</text>
+        <path class="obgraph-constraint-invalid" d="M288,294 L280,294 L280,474 L282,474" data-edge="28" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-invalid" d="M444,334 L452,334 L452,514 L450,514" data-edge="29" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="456" y="424" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M444,494 L456,494 L456,634 L450,634" data-edge="32" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="460" y="564" fill="#60a5fa" text-anchor="start" dominant-baseline="central">make_credential</text>
+        <path class="obgraph-constraint-invalid" d="M288,634 L280,634 L280,774 L282,774" data-edge="33" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="276" y="704" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M288,734 L284,734 L284,844" data-edge="34" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="280" y="789" fill="#60a5fa" text-anchor="end" dominant-baseline="central">replay_validates</text>
+        <path class="obgraph-constraint-invalid" d="M188,1162 L196,1162 L196,1302 L194,1302" data-edge="35" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="200" y="1232" fill="#60a5fa" text-anchor="start" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M32,1282 L24,1282 L24,1378 L26,1378" data-edge="36" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="20" y="1330" fill="#60a5fa" text-anchor="end" dominant-baseline="central">make_credential</text>
+        <path class="obgraph-constraint-invalid" d="M32,1386 L24,1386 L24,1522 L26,1522" data-edge="37" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="20" y="1454" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M32,1482 L28,1482 L28,1596" data-edge="38" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="24" y="1539" fill="#60a5fa" text-anchor="end" dominant-baseline="central">replay_validates</text>
       </g>
       <g class="obgraph-constraints-cross">
         <path class="obgraph-constraint-full" d="M288,66 L212,66 L212,462 L194,462" data-edge="13" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
         <path class="obgraph-constraint-full" d="M288,68 L216,68 L216,482 L194,482" data-edge="14" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,70 L220,70 L220,710 L194,710" data-edge="17" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,72 L224,72 L224,730 L194,730" data-edge="18" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,76 L228,76 L228,958 L194,958" data-edge="21" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,78 L232,78 L232,978 L194,978" data-edge="22" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M444,70 L468,70 L468,422 L450,422" data-edge="26" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,80 L236,80 L236,442 L282,442" data-edge="27" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M444,78 L472,78 L472,670 L450,670" data-edge="30" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M288,82 L240,82 L240,690 L282,690" data-edge="31" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full obgraph-constraint-invalid" d="M288,1198 L212,1198 L212,1146 L194,1146" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-full" d="M288,222 L244,222 L244,1346 L194,1346" data-edge="40" data-participants="1,13" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-full" d="M444,222 L476,222 L476,986 L450,986" data-edge="41" data-participants="1,11" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,70 L220,70 L220,642 L194,642" data-edge="17" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,72 L224,72 L224,662 L194,662" data-edge="18" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,76 L228,76 L228,822 L194,822" data-edge="21" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,78 L232,78 L232,842 L194,842" data-edge="22" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M444,70 L468,70 L468,354 L450,354" data-edge="26" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,80 L236,80 L236,374 L282,374" data-edge="27" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M444,78 L472,78 L472,534 L450,534" data-edge="30" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M288,82 L240,82 L240,554 L282,554" data-edge="31" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full obgraph-constraint-invalid" d="M288,858 L212,858 L212,942 L194,942" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-full" d="M288,154 L244,154 L244,1142 L194,1142" data-edge="40" data-participants="1,13" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M444,154 L476,154 L476,714 L450,714" data-edge="41" data-participants="1,11" marker-end="url(#arrow-constraint-valid)"/>
       </g>
       <g class="obgraph-constraint-stubs">
         <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M212,460 L212,462 L204,462" data-edge="13" data-participants="0,2"/>
         <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,462 L194,462" data-edge="13" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
         <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,482 L204,482" data-edge="14" data-participants="0,2"/>
         <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,482 L194,482" data-edge="14" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,710 L204,710" data-edge="17" data-participants="0,3"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,710 L194,710" data-edge="17" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,730 L204,730" data-edge="18" data-participants="0,3"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,730 L194,730" data-edge="18" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,958 L204,958" data-edge="21" data-participants="0,4"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,958 L194,958" data-edge="21" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,978 L204,978" data-edge="22" data-participants="0,4"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,978 L194,978" data-edge="22" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M468,420 L468,422 L460,422" data-edge="26" data-participants="0,8"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,422 L450,422" data-edge="26" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M262,442 L272,442" data-edge="27" data-participants="0,8"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M272,442 L282,442" data-edge="27" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M470,670 L460,670" data-edge="30" data-participants="0,9"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,670 L450,670" data-edge="30" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M262,690 L272,690" data-edge="31" data-participants="0,9"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M272,690 L282,690" data-edge="31" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-dotted" d="M212,1148 L212,1146 L204,1146" data-edge="39" data-participants="12,5"/>
-        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-solid" d="M204,1146 L194,1146" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,1346 L204,1346" data-edge="40" data-participants="1,13"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,1346 L194,1346" data-edge="40" data-participants="1,13" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M470,986 L460,986" data-edge="41" data-participants="1,11"/>
-        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,986 L450,986" data-edge="41" data-participants="1,11" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,642 L204,642" data-edge="17" data-participants="0,3"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,642 L194,642" data-edge="17" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,662 L204,662" data-edge="18" data-participants="0,3"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,662 L194,662" data-edge="18" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,822 L204,822" data-edge="21" data-participants="0,4"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,822 L194,822" data-edge="21" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,842 L204,842" data-edge="22" data-participants="0,4"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,842 L194,842" data-edge="22" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M468,352 L468,354 L460,354" data-edge="26" data-participants="0,8"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,354 L450,354" data-edge="26" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M262,374 L272,374" data-edge="27" data-participants="0,8"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M272,374 L282,374" data-edge="27" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M470,534 L460,534" data-edge="30" data-participants="0,9"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,534 L450,534" data-edge="30" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M262,554 L272,554" data-edge="31" data-participants="0,9"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M272,554 L282,554" data-edge="31" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-dotted" d="M212,940 L212,942 L204,942" data-edge="39" data-participants="12,5"/>
+        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-solid" d="M204,942 L194,942" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M214,1142 L204,1142" data-edge="40" data-participants="1,13"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M204,1142 L194,1142" data-edge="40" data-participants="1,13" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M470,714 L460,714" data-edge="41" data-participants="1,11"/>
+        <path class="obgraph-constraint-stub obgraph-stub-solid" d="M460,714 L450,714" data-edge="41" data-participants="1,11" marker-end="url(#arrow-constraint-valid)"/>
       </g>
       <g class="obgraph-deriv-chains">
       </g>
@@ -431,16 +431,16 @@
         <rect class="obgraph-node-border" x="289" y="33" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="1" data-selected="true">
-        <rect class="obgraph-node-bg" x="288" y="180" width="156" height="52" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="180" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="196" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="196" dominant-baseline="central" data-trust="trusted">Attestation Challenge</text>
-        <line class="obgraph-node-sep" x1="288" y1="212" x2="444" y2="212"/>
+        <rect class="obgraph-node-bg" x="288" y="112" width="156" height="52" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="112" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="128" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="128" dominant-baseline="central" data-trust="trusted">Attestation Challenge</text>
+        <line class="obgraph-node-sep" x1="288" y1="144" x2="444" y2="144"/>
         <g class="obgraph-prop" data-prop="1" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="212" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="222" dominant-baseline="central">nonce</text>
+          <rect class="obgraph-prop-bg" x="288" y="144" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="154" dominant-baseline="central">nonce</text>
         </g>
-        <rect class="obgraph-node-border" x="289" y="181" width="154" height="50" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="113" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="2" data-selected="false">
         <rect class="obgraph-node-bg" x="32" y="360" width="156" height="132" rx="8"/>
@@ -476,123 +476,123 @@
         <rect class="obgraph-node-border" x="33" y="361" width="154" height="130" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="3" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="588" width="156" height="152" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="588" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="604" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="604" dominant-baseline="central" data-trust="untrusted">AMD Signing Key</text>
-        <circle class="obgraph-node-dot" cx="174" cy="604" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="620" x2="188" y2="620"/>
+        <rect class="obgraph-node-bg" x="32" y="520" width="156" height="152" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="520" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="536" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="536" dominant-baseline="central" data-trust="untrusted">AMD Signing Key</text>
+        <circle class="obgraph-node-dot" cx="174" cy="536" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="552" x2="188" y2="552"/>
         <g class="obgraph-prop" data-prop="7" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="620" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="630" dominant-baseline="central">subject</text>
+          <rect class="obgraph-prop-bg" x="32" y="552" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="562" dominant-baseline="central">subject</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="640" x2="188" y2="640"/>
+        <line class="obgraph-prop-divider" x1="32" y1="572" x2="188" y2="572"/>
         <g class="obgraph-prop" data-prop="8" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="640" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="650" dominant-baseline="central">issuer</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="650" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="572" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="582" dominant-baseline="central">issuer</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="582" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="660" x2="188" y2="660"/>
+        <line class="obgraph-prop-divider" x1="32" y1="592" x2="188" y2="592"/>
         <g class="obgraph-prop" data-prop="9" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="660" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="670" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="670" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="592" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="602" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="602" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="680" x2="188" y2="680"/>
+        <line class="obgraph-prop-divider" x1="32" y1="612" x2="188" y2="612"/>
         <g class="obgraph-prop" data-prop="10" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="680" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="690" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="690" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="612" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="622" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="622" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="700" x2="188" y2="700"/>
+        <line class="obgraph-prop-divider" x1="32" y1="632" x2="188" y2="632"/>
         <g class="obgraph-prop" data-prop="11" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="700" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="710" dominant-baseline="central">not_before</text>
+          <rect class="obgraph-prop-bg" x="32" y="632" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="642" dominant-baseline="central">not_before</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="720" x2="188" y2="720"/>
+        <line class="obgraph-prop-divider" x1="32" y1="652" x2="188" y2="652"/>
         <g class="obgraph-prop" data-prop="12" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="720" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="730" dominant-baseline="central">not_after</text>
+          <rect class="obgraph-prop-bg" x="32" y="652" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="662" dominant-baseline="central">not_after</text>
         </g>
-        <rect class="obgraph-node-border" x="33" y="589" width="154" height="150" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="521" width="154" height="150" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="4" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="836" width="156" height="172" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="836" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="852" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="852" dominant-baseline="central" data-trust="untrusted">VCEK</text>
-        <circle class="obgraph-node-dot" cx="174" cy="852" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="868" x2="188" y2="868"/>
+        <rect class="obgraph-node-bg" x="32" y="700" width="156" height="172" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="700" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="716" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="716" dominant-baseline="central" data-trust="untrusted">VCEK</text>
+        <circle class="obgraph-node-dot" cx="174" cy="716" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="732" x2="188" y2="732"/>
         <g class="obgraph-prop" data-prop="13" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="868" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="878" dominant-baseline="central">subject</text>
+          <rect class="obgraph-prop-bg" x="32" y="732" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="742" dominant-baseline="central">subject</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="888" x2="188" y2="888"/>
+        <line class="obgraph-prop-divider" x1="32" y1="752" x2="188" y2="752"/>
         <g class="obgraph-prop" data-prop="14" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="888" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="898" dominant-baseline="central">issuer</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="898" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="752" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="762" dominant-baseline="central">issuer</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="762" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="908" x2="188" y2="908"/>
+        <line class="obgraph-prop-divider" x1="32" y1="772" x2="188" y2="772"/>
         <g class="obgraph-prop" data-prop="15" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="908" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="918" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="918" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="772" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="782" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="782" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="928" x2="188" y2="928"/>
+        <line class="obgraph-prop-divider" x1="32" y1="792" x2="188" y2="792"/>
         <g class="obgraph-prop" data-prop="16" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="928" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="938" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="938" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="792" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="802" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="802" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="948" x2="188" y2="948"/>
+        <line class="obgraph-prop-divider" x1="32" y1="812" x2="188" y2="812"/>
         <g class="obgraph-prop" data-prop="17" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="948" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="958" dominant-baseline="central">not_before</text>
+          <rect class="obgraph-prop-bg" x="32" y="812" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="822" dominant-baseline="central">not_before</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="968" x2="188" y2="968"/>
+        <line class="obgraph-prop-divider" x1="32" y1="832" x2="188" y2="832"/>
         <g class="obgraph-prop" data-prop="18" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="968" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="978" dominant-baseline="central">not_after</text>
+          <rect class="obgraph-prop-bg" x="32" y="832" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="842" dominant-baseline="central">not_after</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="988" x2="188" y2="988"/>
+        <line class="obgraph-prop-divider" x1="32" y1="852" x2="188" y2="852"/>
         <g class="obgraph-prop" data-prop="19" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="988" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="998" dominant-baseline="central">chip_id</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="998" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="852" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="862" dominant-baseline="central">chip_id</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="862" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="837" width="154" height="170" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="701" width="154" height="170" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="5" data-selected="true">
-        <rect class="obgraph-node-bg" x="32" y="1104" width="156" height="112" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1104" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1120" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1120" dominant-baseline="central" data-trust="untrusted">Attestation Report</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1120" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1136" x2="188" y2="1136"/>
+        <rect class="obgraph-node-bg" x="32" y="900" width="156" height="112" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="900" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="916" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="916" dominant-baseline="central" data-trust="untrusted">Attestation Report</text>
+        <circle class="obgraph-node-dot" cx="174" cy="916" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="932" x2="188" y2="932"/>
         <g class="obgraph-prop" data-prop="20" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1136" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1146" dominant-baseline="central">chip_id</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1146" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="932" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="942" dominant-baseline="central">chip_id</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="942" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1156" x2="188" y2="1156"/>
+        <line class="obgraph-prop-divider" x1="32" y1="952" x2="188" y2="952"/>
         <g class="obgraph-prop" data-prop="21" data-trust="untrusted" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1156" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1166" dominant-baseline="central">report_data</text>
+          <rect class="obgraph-prop-bg" x="32" y="952" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="962" dominant-baseline="central">report_data</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1176" x2="188" y2="1176"/>
+        <line class="obgraph-prop-divider" x1="32" y1="972" x2="188" y2="972"/>
         <g class="obgraph-prop" data-prop="22" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1176" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1186" dominant-baseline="central">tcb_version</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1186" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="972" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="982" dominant-baseline="central">tcb_version</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="982" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1196" x2="188" y2="1196"/>
+        <line class="obgraph-prop-divider" x1="32" y1="992" x2="188" y2="992"/>
         <g class="obgraph-prop" data-prop="23" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1196" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1206" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1206" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="992" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1002" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1002" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1105" width="154" height="110" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="901" width="154" height="110" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="6" data-selected="false">
         <rect class="obgraph-node-bg" x="32" y="32" width="156" height="52" rx="8"/>
@@ -619,241 +619,241 @@
         <rect class="obgraph-node-border" x="33" y="173" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="8" data-selected="false">
-        <rect class="obgraph-node-bg" x="288" y="320" width="156" height="132" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="320" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="336" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="336" dominant-baseline="central" data-trust="untrusted">Manufacturer CA</text>
-        <line class="obgraph-node-sep" x1="288" y1="352" x2="444" y2="352"/>
+        <rect class="obgraph-node-bg" x="288" y="252" width="156" height="132" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="252" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="268" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="268" dominant-baseline="central" data-trust="untrusted">Manufacturer CA</text>
+        <line class="obgraph-node-sep" x1="288" y1="284" x2="444" y2="284"/>
         <g class="obgraph-prop" data-prop="26" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="352" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="362" dominant-baseline="central">subject</text>
+          <rect class="obgraph-prop-bg" x="288" y="284" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="294" dominant-baseline="central">subject</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="372" x2="444" y2="372"/>
+        <line class="obgraph-prop-divider" x1="288" y1="304" x2="444" y2="304"/>
         <g class="obgraph-prop" data-prop="27" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="372" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="382" dominant-baseline="central">issuer</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="382" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="304" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="314" dominant-baseline="central">issuer</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="314" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="392" x2="444" y2="392"/>
+        <line class="obgraph-prop-divider" x1="288" y1="324" x2="444" y2="324"/>
         <g class="obgraph-prop" data-prop="28" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="392" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="402" dominant-baseline="central">public_key</text>
+          <rect class="obgraph-prop-bg" x="288" y="324" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="334" dominant-baseline="central">public_key</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="412" x2="444" y2="412"/>
+        <line class="obgraph-prop-divider" x1="288" y1="344" x2="444" y2="344"/>
         <g class="obgraph-prop" data-prop="29" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="412" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="422" dominant-baseline="central">not_before</text>
+          <rect class="obgraph-prop-bg" x="288" y="344" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="354" dominant-baseline="central">not_before</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="432" x2="444" y2="432"/>
+        <line class="obgraph-prop-divider" x1="288" y1="364" x2="444" y2="364"/>
         <g class="obgraph-prop" data-prop="30" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="432" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="442" dominant-baseline="central">not_after</text>
+          <rect class="obgraph-prop-bg" x="288" y="364" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="374" dominant-baseline="central">not_after</text>
         </g>
-        <rect class="obgraph-node-border" x="289" y="321" width="154" height="130" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="253" width="154" height="130" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="9" data-selected="false">
-        <rect class="obgraph-node-bg" x="288" y="548" width="156" height="152" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="548" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="564" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="564" dominant-baseline="central" data-trust="untrusted">Endorsement Key</text>
-        <circle class="obgraph-node-dot" cx="430" cy="564" r="2"/>
-        <line class="obgraph-node-sep" x1="288" y1="580" x2="444" y2="580"/>
+        <rect class="obgraph-node-bg" x="288" y="412" width="156" height="152" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="412" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="428" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="428" dominant-baseline="central" data-trust="untrusted">Endorsement Key</text>
+        <circle class="obgraph-node-dot" cx="430" cy="428" r="2"/>
+        <line class="obgraph-node-sep" x1="288" y1="444" x2="444" y2="444"/>
         <g class="obgraph-prop" data-prop="31" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="580" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="590" dominant-baseline="central">subject</text>
+          <rect class="obgraph-prop-bg" x="288" y="444" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="454" dominant-baseline="central">subject</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="600" x2="444" y2="600"/>
+        <line class="obgraph-prop-divider" x1="288" y1="464" x2="444" y2="464"/>
         <g class="obgraph-prop" data-prop="32" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="600" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="610" dominant-baseline="central">issuer</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="610" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="464" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="474" dominant-baseline="central">issuer</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="474" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="620" x2="444" y2="620"/>
+        <line class="obgraph-prop-divider" x1="288" y1="484" x2="444" y2="484"/>
         <g class="obgraph-prop" data-prop="33" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="620" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="630" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="630" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="484" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="494" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="494" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="640" x2="444" y2="640"/>
+        <line class="obgraph-prop-divider" x1="288" y1="504" x2="444" y2="504"/>
         <g class="obgraph-prop" data-prop="34" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="640" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="650" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="650" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="504" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="514" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="514" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="660" x2="444" y2="660"/>
+        <line class="obgraph-prop-divider" x1="288" y1="524" x2="444" y2="524"/>
         <g class="obgraph-prop" data-prop="35" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="660" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="670" dominant-baseline="central">not_before</text>
+          <rect class="obgraph-prop-bg" x="288" y="524" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="534" dominant-baseline="central">not_before</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="680" x2="444" y2="680"/>
+        <line class="obgraph-prop-divider" x1="288" y1="544" x2="444" y2="544"/>
         <g class="obgraph-prop" data-prop="36" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="680" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="690" dominant-baseline="central">not_after</text>
+          <rect class="obgraph-prop-bg" x="288" y="544" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="554" dominant-baseline="central">not_after</text>
         </g>
-        <rect class="obgraph-node-border" x="289" y="549" width="154" height="150" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="413" width="154" height="150" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="10" data-selected="false">
-        <rect class="obgraph-node-bg" x="288" y="796" width="156" height="52" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="796" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="812" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="812" dominant-baseline="central" data-trust="untrusted">Attestation Key</text>
-        <circle class="obgraph-node-dot" cx="430" cy="812" r="2"/>
-        <line class="obgraph-node-sep" x1="288" y1="828" x2="444" y2="828"/>
+        <rect class="obgraph-node-bg" x="288" y="592" width="156" height="52" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="592" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="608" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="608" dominant-baseline="central" data-trust="untrusted">Attestation Key</text>
+        <circle class="obgraph-node-dot" cx="430" cy="608" r="2"/>
+        <line class="obgraph-node-sep" x1="288" y1="624" x2="444" y2="624"/>
         <g class="obgraph-prop" data-prop="37" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="828" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="838" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="838" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="624" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="634" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="634" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="289" y="797" width="154" height="50" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="593" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="11" data-selected="false">
-        <rect class="obgraph-node-bg" x="288" y="944" width="156" height="112" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="944" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="960" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="960" dominant-baseline="central" data-trust="untrusted">TPM Quote</text>
-        <circle class="obgraph-node-dot" cx="430" cy="960" r="2"/>
-        <line class="obgraph-node-sep" x1="288" y1="976" x2="444" y2="976"/>
+        <rect class="obgraph-node-bg" x="288" y="672" width="156" height="112" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="672" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="688" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="688" dominant-baseline="central" data-trust="untrusted">TPM Quote</text>
+        <circle class="obgraph-node-dot" cx="430" cy="688" r="2"/>
+        <line class="obgraph-node-sep" x1="288" y1="704" x2="444" y2="704"/>
         <g class="obgraph-prop" data-prop="38" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="976" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="986" dominant-baseline="central">nonce</text>
+          <rect class="obgraph-prop-bg" x="288" y="704" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="714" dominant-baseline="central">nonce</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="996" x2="444" y2="996"/>
+        <line class="obgraph-prop-divider" x1="288" y1="724" x2="444" y2="724"/>
         <g class="obgraph-prop" data-prop="39" data-trust="untrusted" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="996" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="1006" dominant-baseline="central">pcr_digest</text>
+          <rect class="obgraph-prop-bg" x="288" y="724" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="734" dominant-baseline="central">pcr_digest</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="1016" x2="444" y2="1016"/>
+        <line class="obgraph-prop-divider" x1="288" y1="744" x2="444" y2="744"/>
         <g class="obgraph-prop" data-prop="40" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="288" y="1016" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="1026" dominant-baseline="central">measurement</text>
+          <rect class="obgraph-prop-bg" x="288" y="744" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="754" dominant-baseline="central">measurement</text>
         </g>
-        <line class="obgraph-prop-divider" x1="288" y1="1036" x2="444" y2="1036"/>
+        <line class="obgraph-prop-divider" x1="288" y1="764" x2="444" y2="764"/>
         <g class="obgraph-prop" data-prop="41" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="1036" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="1046" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="1046" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="764" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="774" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="774" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="289" y="945" width="154" height="110" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="673" width="154" height="110" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="12" data-selected="false">
-        <rect class="obgraph-node-bg" x="288" y="1152" width="156" height="52" rx="8"/>
-        <rect class="obgraph-node-header" x="288" y="1152" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="288" y="1168" width="156" height="16"/>
-        <text class="obgraph-node-title" x="300" y="1168" dominant-baseline="central" data-trust="untrusted">TCG Event Log</text>
-        <circle class="obgraph-node-dot" cx="430" cy="1168" r="2"/>
-        <line class="obgraph-node-sep" x1="288" y1="1184" x2="444" y2="1184"/>
+        <rect class="obgraph-node-bg" x="288" y="812" width="156" height="52" rx="8"/>
+        <rect class="obgraph-node-header" x="288" y="812" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="288" y="828" width="156" height="16"/>
+        <text class="obgraph-node-title" x="300" y="828" dominant-baseline="central" data-trust="untrusted">TCG Event Log</text>
+        <circle class="obgraph-node-dot" cx="430" cy="828" r="2"/>
+        <line class="obgraph-node-sep" x1="288" y1="844" x2="444" y2="844"/>
         <g class="obgraph-prop" data-prop="42" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="288" y="1184" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="300" y="1194" dominant-baseline="central">event_entries</text>
-          <circle class="obgraph-prop-dot" cx="430" cy="1194" r="2"/>
+          <rect class="obgraph-prop-bg" x="288" y="844" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="300" y="854" dominant-baseline="central">event_entries</text>
+          <circle class="obgraph-prop-dot" cx="430" cy="854" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="289" y="1153" width="154" height="50" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="289" y="813" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="13" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="1304" width="156" height="72" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1304" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1320" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1320" dominant-baseline="central" data-trust="untrusted">Guest Report Data</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1320" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1336" x2="188" y2="1336"/>
+        <rect class="obgraph-node-bg" x="32" y="1100" width="156" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="1100" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="1116" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="1116" dominant-baseline="central" data-trust="untrusted">Guest Report Data</text>
+        <circle class="obgraph-node-dot" cx="174" cy="1116" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="1132" x2="188" y2="1132"/>
         <g class="obgraph-prop" data-prop="43" data-trust="trusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1336" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1346" dominant-baseline="central">nonce</text>
+          <rect class="obgraph-prop-bg" x="32" y="1132" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1142" dominant-baseline="central">nonce</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1356" x2="188" y2="1356"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1152" x2="188" y2="1152"/>
         <g class="obgraph-prop" data-prop="44" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1356" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1366" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1366" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1152" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1162" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1162" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1305" width="154" height="70" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="1101" width="154" height="70" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="14" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="1424" width="156" height="112" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1424" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1440" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1440" dominant-baseline="central" data-trust="untrusted">vTPM EK</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1440" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1456" x2="188" y2="1456"/>
+        <rect class="obgraph-node-bg" x="32" y="1200" width="156" height="112" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="1200" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="1216" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="1216" dominant-baseline="central" data-trust="untrusted">vTPM EK</text>
+        <circle class="obgraph-node-dot" cx="174" cy="1216" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="1232" x2="188" y2="1232"/>
         <g class="obgraph-prop" data-prop="45" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1456" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1466" dominant-baseline="central">subject</text>
+          <rect class="obgraph-prop-bg" x="32" y="1232" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1242" dominant-baseline="central">subject</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1476" x2="188" y2="1476"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1252" x2="188" y2="1252"/>
         <g class="obgraph-prop" data-prop="46" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1476" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1486" dominant-baseline="central">issuer</text>
+          <rect class="obgraph-prop-bg" x="32" y="1252" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1262" dominant-baseline="central">issuer</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1496" x2="188" y2="1496"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1272" x2="188" y2="1272"/>
         <g class="obgraph-prop" data-prop="47" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1496" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1506" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1506" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1272" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1282" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1282" r="2"/>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1516" x2="188" y2="1516"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1292" x2="188" y2="1292"/>
         <g class="obgraph-prop" data-prop="48" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1516" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1526" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1526" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1292" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1302" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1302" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1425" width="154" height="110" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="1201" width="154" height="110" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="15" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="1584" width="156" height="52" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1584" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1600" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1600" dominant-baseline="central" data-trust="untrusted">vTPM AK</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1600" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1616" x2="188" y2="1616"/>
+        <rect class="obgraph-node-bg" x="32" y="1340" width="156" height="52" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="1340" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="1356" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="1356" dominant-baseline="central" data-trust="untrusted">vTPM AK</text>
+        <circle class="obgraph-node-dot" cx="174" cy="1356" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="1372" x2="188" y2="1372"/>
         <g class="obgraph-prop" data-prop="49" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1616" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1626" dominant-baseline="central">public_key</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1626" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1372" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1382" dominant-baseline="central">public_key</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1382" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1585" width="154" height="50" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="1341" width="154" height="50" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="16" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="1684" width="156" height="112" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1684" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1700" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1700" dominant-baseline="central" data-trust="untrusted">vTPM Quote</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1700" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1716" x2="188" y2="1716"/>
+        <rect class="obgraph-node-bg" x="32" y="1420" width="156" height="112" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="1420" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="1436" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="1436" dominant-baseline="central" data-trust="untrusted">vTPM Quote</text>
+        <circle class="obgraph-node-dot" cx="174" cy="1436" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="1452" x2="188" y2="1452"/>
         <g class="obgraph-prop" data-prop="50" data-trust="untrusted" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1716" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1726" dominant-baseline="central">nonce</text>
+          <rect class="obgraph-prop-bg" x="32" y="1452" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1462" dominant-baseline="central">nonce</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1736" x2="188" y2="1736"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1472" x2="188" y2="1472"/>
         <g class="obgraph-prop" data-prop="51" data-trust="untrusted" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1736" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1746" dominant-baseline="central">pcr_digest</text>
+          <rect class="obgraph-prop-bg" x="32" y="1472" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1482" dominant-baseline="central">pcr_digest</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1756" x2="188" y2="1756"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1492" x2="188" y2="1492"/>
         <g class="obgraph-prop" data-prop="52" data-trust="always" data-critical="false">
-          <rect class="obgraph-prop-bg" x="32" y="1756" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1766" dominant-baseline="central">measurement</text>
+          <rect class="obgraph-prop-bg" x="32" y="1492" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1502" dominant-baseline="central">measurement</text>
         </g>
-        <line class="obgraph-prop-divider" x1="32" y1="1776" x2="188" y2="1776"/>
+        <line class="obgraph-prop-divider" x1="32" y1="1512" x2="188" y2="1512"/>
         <g class="obgraph-prop" data-prop="53" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1776" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1786" dominant-baseline="central">signature</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1786" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1512" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1522" dominant-baseline="central">signature</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1522" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1685" width="154" height="110" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="1421" width="154" height="110" rx="7" fill="none"/>
       </g>
       <g class="obgraph-node" data-node="17" data-selected="false">
-        <rect class="obgraph-node-bg" x="32" y="1844" width="156" height="52" rx="8"/>
-        <rect class="obgraph-node-header" x="32" y="1844" width="156" height="32" rx="8"/>
-        <rect class="obgraph-node-header-fill" x="32" y="1860" width="156" height="16"/>
-        <text class="obgraph-node-title" x="44" y="1860" dominant-baseline="central" data-trust="untrusted">vTPM Event Log</text>
-        <circle class="obgraph-node-dot" cx="174" cy="1860" r="2"/>
-        <line class="obgraph-node-sep" x1="32" y1="1876" x2="188" y2="1876"/>
+        <rect class="obgraph-node-bg" x="32" y="1560" width="156" height="52" rx="8"/>
+        <rect class="obgraph-node-header" x="32" y="1560" width="156" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="32" y="1576" width="156" height="16"/>
+        <text class="obgraph-node-title" x="44" y="1576" dominant-baseline="central" data-trust="untrusted">vTPM Event Log</text>
+        <circle class="obgraph-node-dot" cx="174" cy="1576" r="2"/>
+        <line class="obgraph-node-sep" x1="32" y1="1592" x2="188" y2="1592"/>
         <g class="obgraph-prop" data-prop="54" data-trust="untrusted" data-critical="true">
-          <rect class="obgraph-prop-bg" x="32" y="1876" width="156" height="20"/>
-          <text class="obgraph-prop-name" x="44" y="1886" dominant-baseline="central">event_entries</text>
-          <circle class="obgraph-prop-dot" cx="174" cy="1886" r="2"/>
+          <rect class="obgraph-prop-bg" x="32" y="1592" width="156" height="20"/>
+          <text class="obgraph-prop-name" x="44" y="1602" dominant-baseline="central">event_entries</text>
+          <circle class="obgraph-prop-dot" cx="174" cy="1602" r="2"/>
         </g>
-        <rect class="obgraph-node-border" x="33" y="1845" width="154" height="50" rx="7" fill="none"/>
+        <rect class="obgraph-node-border" x="33" y="1561" width="154" height="50" rx="7" fill="none"/>
       </g>
     </g>
     </g>

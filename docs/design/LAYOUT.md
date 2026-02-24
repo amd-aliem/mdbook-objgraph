@@ -570,8 +570,8 @@ Y-coordinates are determined directly from layer assignment:
 function assign_y_coordinates(layers) → y[]:
     y_offset = 0
     for each layer k:
-        if layer_is_empty(k):
-            continue   // collapsed empty layer
+        if layer_is_empty(k) or layer_is_segment_only(k):
+            continue   // collapsed empty layer or virtual routing layer
         else if layer_is_derivation(k):
             // Derivation layer: shorter spacing
             for each item in layers[k]:
@@ -582,7 +582,7 @@ function assign_y_coordinates(layers) → y[]:
             max_height = max(height(node) for node in layers[k])
             for each item in layers[k]:
                 y[item] = y_offset
-            y_offset += LAYER_V_SPACING + max_height
+            y_offset += INTER_NODE_GAP + max_height
     return y
 ```
 

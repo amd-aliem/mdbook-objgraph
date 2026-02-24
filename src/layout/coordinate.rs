@@ -15,7 +15,7 @@ use super::layer_assign::LayerAssignment;
 use super::long_edge::{LayerEntry, LayerItem, LongEdge};
 use super::{
     deriv_height, deriv_width, node_height, node_width, DerivLayout, NodeLayout,
-    DERIV_V_SPACING, LAYER_V_SPACING, NODE_H_SPACING, ROW_HEIGHT,
+    DERIV_V_SPACING, INTER_NODE_GAP, NODE_H_SPACING, ROW_HEIGHT,
 };
 
 // ---------------------------------------------------------------------------
@@ -605,6 +605,17 @@ pub fn assign_y_coordinates(layers: &[LayerEntry], graph: &Graph) -> HashMap<u32
             continue;
         }
 
+        // Layers containing only long-edge segments are virtual routing layers;
+        // they carry no visual content and should not contribute vertical space.
+        let is_segment_only = layer.items.iter().all(|item| {
+            matches!(item, LayerItem::Segment(_, _))
+        });
+        if is_segment_only {
+            // Record the y for segment routing but don't advance the offset.
+            y_map.insert(li as u32, y_offset);
+            continue;
+        }
+
         let is_derivation_layer = layer.items.iter().all(|item| {
             matches!(item, LayerItem::Derivation(_))
         });
@@ -624,7 +635,11 @@ pub fn assign_y_coordinates(layers: &[LayerEntry], graph: &Graph) -> HashMap<u32
                     LayerItem::Segment(_, _) => 0.0,
                 })
                 .fold(0.0_f64, f64::max);
-            y_offset += LAYER_V_SPACING + max_height;
+            // Use INTER_NODE_GAP for the vertical gap between layers.
+            // The initial LAYER_V_SPACING (48px) is a theoretical maximum;
+            // the mockup and vertical compaction target INTER_NODE_GAP (28px)
+            // between all adjacent elements.
+            y_offset += INTER_NODE_GAP + max_height;
         }
     }
 
@@ -762,7 +777,7 @@ pub fn assign_coordinates(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{HEADER_HEIGHT, ROW_HEIGHT};
+    use crate::layout::{HEADER_HEIGHT, INTER_NODE_GAP, ROW_HEIGHT};
     use crate::model::types::*;
     use std::collections::HashMap;
 
@@ -959,7 +974,7 @@ mod tests {
 
         // Layer 0 has node A with 2 props: height = HEADER_HEIGHT + 2*ROW_HEIGHT.
         let expected_height_0 = HEADER_HEIGHT + 2.0 * ROW_HEIGHT;
-        let expected_y1 = y0 + LAYER_V_SPACING + expected_height_0;
+        let expected_y1 = y0 + INTER_NODE_GAP + expected_height_0;
 
         assert!(
             (y0).abs() < 1e-6,
@@ -1002,7 +1017,7 @@ mod tests {
 
         // Layer 0 has one node with 1 prop.
         let h0 = HEADER_HEIGHT + 1.0 * ROW_HEIGHT;
-        let expected_y1 = y0 + LAYER_V_SPACING + h0;
+        let expected_y1 = y0 + INTER_NODE_GAP + h0;
 
         assert!(
             (y1 - expected_y1).abs() < 1e-6,
