@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use super::long_edge::{LayerEntry, LayerItem, LongEdge};
+use super::{EndpointRole, PortSide, PortSideAssignment};
 use crate::model::types::{DerivId, Edge, EdgeId, Graph, NodeId, PropId};
 
 /// Maximum iterations for crossing minimization (per ELK convention).
@@ -29,6 +30,11 @@ struct EdgeEndpoint {
     /// For property-level endpoints, the specific property.
     prop: Option<PropId>,
 }
+
+/// For each property, edges sorted by opposite-endpoint layer position.
+/// Computed during crossing minimization so port slot ordering is consistent
+/// with property ordering (ELK/KLay FIXED_ORDER approach).
+pub type EdgePortOrder = HashMap<PropId, Vec<EdgeId>>;
 
 // ---------------------------------------------------------------------------
 // Property ordering tracker
@@ -391,17 +397,54 @@ fn collect_adjacent_edges(
 // ---------------------------------------------------------------------------
 
 /// Resolve the fractional position of an edge endpoint within its layer.
+///
+/// When `edge_port_order` and `port_sides` are non-empty, adds side-aware
+/// sub-fractions so that crossing detection accounts for port slot ordering.
+/// Left-side edges get negative sub-fractions, right-side get positive,
+/// ensuring edges on opposite sides never appear to cross at a shared property.
+#[allow(clippy::too_many_arguments)]
 fn resolve_position(
     ep: &EdgeEndpoint,
     layer: &LayerEntry,
     graph: &Graph,
     prop_order: &PropertyOrder,
     long_edges: &[LongEdge],
+    edge_port_order: &EdgePortOrder,
+    edge_id: EdgeId,
+    port_sides: &PortSideAssignment,
+    role: EndpointRole,
 ) -> f64 {
     match ep.prop {
         Some(prop_id) => {
-            // Property-level endpoint: use fractional position
-            position_of_prop(prop_id, graph, layer, prop_order)
+            let base = position_of_prop(prop_id, graph, layer, prop_order);
+
+            // Add port slot sub-fraction if port ordering is available
+            if let Some(edges) = edge_port_order.get(&prop_id) {
+                let total = edges.len();
+                if total > 1 && let Some(slot) = edges.iter().position(|&eid| eid == edge_id) {
+                    let node_id = graph.properties[prop_id.index()].node;
+                    let num_props = prop_order.num_props(node_id);
+                    let prop_gap = 1.0 / (num_props as f64 + 1.0);
+
+                    // Center within slot range: 0..total-1 → -0.5..+0.5
+                    let centered = if total > 1 {
+                        (slot as f64 / (total - 1) as f64) - 0.5
+                    } else {
+                        0.0
+                    };
+
+                    // Side-aware: left-side edges get negative offset,
+                    // right-side edges get positive offset.
+                    let side = port_sides.get(&(edge_id, role)).copied();
+                    let side_sign = match side {
+                        Some(PortSide::Left) => -1.0,
+                        Some(PortSide::Right) | None => 1.0,
+                    };
+
+                    return base + side_sign * (0.5 + centered * 0.4) * prop_gap * 0.3;
+                }
+            }
+            base
         }
         None => {
             // Element-level endpoint
@@ -436,10 +479,13 @@ pub fn count_crossings(
     // internal version.
     let prop_order = PropertyOrder::from_graph(graph);
     let long_edges: Vec<LongEdge> = Vec::new();
-    count_crossings_internal(layer_a, layer_b, graph, &prop_order, &long_edges, 0, 1)
+    let empty_epo = EdgePortOrder::new();
+    let empty_ps = PortSideAssignment::new();
+    count_crossings_internal(layer_a, layer_b, graph, &prop_order, &long_edges, 0, 1, &empty_epo, &empty_ps)
 }
 
 /// Internal crossing count with full state access.
+#[allow(clippy::too_many_arguments)]
 fn count_crossings_internal(
     layer_a: &LayerEntry,
     layer_b: &LayerEntry,
@@ -448,6 +494,8 @@ fn count_crossings_internal(
     long_edges: &[LongEdge],
     layer_a_idx: u32,
     layer_b_idx: u32,
+    edge_port_order: &EdgePortOrder,
+    port_sides: &PortSideAssignment,
 ) -> u64 {
     let layer_map = {
         let mut map = HashMap::new();
@@ -484,14 +532,18 @@ fn count_crossings_internal(
         layer_a
     };
 
-    // Resolve positions for each edge
+    // Resolve positions for each edge (with side-aware sub-fractions)
     let resolved: Vec<(f64, f64, u32)> = adj_edges
         .iter()
         .map(|ae| {
-            let upper_pos =
-                resolve_position(&ae.upper, upper_layer, graph, prop_order, long_edges);
-            let lower_pos =
-                resolve_position(&ae.lower, lower_layer, graph, prop_order, long_edges);
+            let upper_pos = resolve_position(
+                &ae.upper, upper_layer, graph, prop_order, long_edges,
+                edge_port_order, ae.edge_id, port_sides, EndpointRole::Upstream,
+            );
+            let lower_pos = resolve_position(
+                &ae.lower, lower_layer, graph, prop_order, long_edges,
+                edge_port_order, ae.edge_id, port_sides, EndpointRole::Downstream,
+            );
             (upper_pos, lower_pos, ae.weight)
         })
         .collect();
@@ -526,6 +578,8 @@ fn count_all_crossings(
     graph: &Graph,
     prop_order: &PropertyOrder,
     long_edges: &[LongEdge],
+    edge_port_order: &EdgePortOrder,
+    port_sides: &PortSideAssignment,
 ) -> u64 {
     let mut total = 0u64;
     for i in 0..layers.len().saturating_sub(1) {
@@ -537,6 +591,8 @@ fn count_all_crossings(
             long_edges,
             i as u32,
             (i + 1) as u32,
+            edge_port_order,
+            port_sides,
         );
     }
     total
@@ -613,21 +669,36 @@ pub fn minimize_crossings(
     layers: &mut Vec<LayerEntry>,
     long_edges: &mut [LongEdge],
     graph: &Graph,
-) -> PropertyOrder {
+) -> (PropertyOrder, EdgePortOrder, PortSideAssignment) {
     if layers.len() <= 1 {
-        return PropertyOrder::from_graph(graph);
+        let prop_order = PropertyOrder::from_graph(graph);
+        let edge_port_order = compute_edge_port_order(graph, layers, long_edges, &prop_order);
+        let port_sides = compute_layer_space_port_sides(graph, layers);
+        return (prop_order, edge_port_order, port_sides);
     }
 
     let mut prop_order = PropertyOrder::from_graph(graph);
+
+    // Empty port maps for barycenter computation (sub-fractions only matter
+    // for crossing detection, not for computing barycenters).
+    let empty_epo = EdgePortOrder::new();
+    let empty_ps = PortSideAssignment::new();
 
     // Initialize long edge segment positions from their actual indices in
     // each layer.  build_layers() sets all positions to 0.0 which makes
     // every segment appear at the same coordinate, hiding real crossings.
     update_long_edge_positions(layers, long_edges);
 
+    // Compute initial port sides + edge port order for crossing detection
+    let mut best_port_sides = compute_layer_space_port_sides(graph, layers);
+    let mut best_edge_port_order = compute_edge_port_order(graph, layers, long_edges, &prop_order);
+
     let mut best_layers = layers.clone();
     let mut best_prop_order = prop_order.clone();
-    let mut best_crossings = count_all_crossings(layers, graph, &prop_order, long_edges);
+    let mut best_crossings = count_all_crossings(
+        layers, graph, &prop_order, long_edges,
+        &best_edge_port_order, &best_port_sides,
+    );
 
     // Always run the iteration loop: even when abstract crossings are zero,
     // barycenter-based property reordering improves physical port placement
@@ -753,6 +824,7 @@ pub fn minimize_crossings(
                                     let pos = resolve_position(
                                         other_ep, above_layer, graph,
                                         &prop_order, long_edges,
+                                        &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Upstream,
                                     );
                                     positions.push((pos, ae.weight));
                                 }
@@ -773,6 +845,7 @@ pub fn minimize_crossings(
                                     let pos = resolve_position(
                                         other_ep, below_layer, graph,
                                         &prop_order, long_edges,
+                                        &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Downstream,
                                     );
                                     positions.push((pos, ae.weight));
                                 }
@@ -957,6 +1030,7 @@ pub fn minimize_crossings(
                                     graph,
                                     &prop_order,
                                     long_edges,
+                                    &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Downstream,
                                 );
                                 node_level_positions.push((pos, ae.weight));
                             } else if is_lower_node {
@@ -966,6 +1040,7 @@ pub fn minimize_crossings(
                                     graph,
                                     &prop_order,
                                     long_edges,
+                                    &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Upstream,
                                 );
                                 node_level_positions.push((pos, ae.weight));
                             }
@@ -994,6 +1069,7 @@ pub fn minimize_crossings(
                                         graph,
                                         &prop_order,
                                         long_edges,
+                                        &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Downstream,
                                     );
                                     positions.push((pos, ae.weight));
                                 } else if touches_lower {
@@ -1003,6 +1079,7 @@ pub fn minimize_crossings(
                                         graph,
                                         &prop_order,
                                         long_edges,
+                                        &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Upstream,
                                     );
                                     positions.push((pos, ae.weight));
                                 }
@@ -1045,6 +1122,7 @@ pub fn minimize_crossings(
                                     graph,
                                     &prop_order,
                                     long_edges,
+                                    &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Downstream,
                                 );
                                 positions.push((pos, ae.weight));
                             } else if is_lower {
@@ -1054,6 +1132,7 @@ pub fn minimize_crossings(
                                     graph,
                                     &prop_order,
                                     long_edges,
+                                    &empty_epo, ae.edge_id, &empty_ps, EndpointRole::Upstream,
                                 );
                                 positions.push((pos, ae.weight));
                             }
@@ -1089,11 +1168,21 @@ pub fn minimize_crossings(
         // Update long edge segment positions after reordering
         update_long_edge_positions(layers, long_edges);
 
-        let current_crossings = count_all_crossings(layers, graph, &prop_order, long_edges);
+        // Recompute port sides and edge port order from current layout
+        let current_port_sides = compute_layer_space_port_sides(graph, layers);
+        let current_edge_port_order =
+            compute_edge_port_order(graph, layers, long_edges, &prop_order);
+
+        let current_crossings = count_all_crossings(
+            layers, graph, &prop_order, long_edges,
+            &current_edge_port_order, &current_port_sides,
+        );
 
         if current_crossings < best_crossings || (current_crossings == 0 && iteration < 2) {
             best_layers = layers.clone();
             best_prop_order = prop_order.clone();
+            best_port_sides = current_port_sides;
+            best_edge_port_order = current_edge_port_order;
             best_crossings = current_crossings;
         }
 
@@ -1113,10 +1202,209 @@ pub fn minimize_crossings(
     // layer ordering. We update long edge positions for the best layout.
     update_long_edge_positions(layers, long_edges);
 
-    best_prop_order
+    (best_prop_order, best_edge_port_order, best_port_sides)
+}
+
+/// Compute edge port ordering for each property based on the opposite endpoint's
+/// layer-space position.  This uses the same positional data as crossing
+/// minimization, ensuring port slot assignment (Phase 6b) is consistent with
+/// property ordering (Phase 3b).
+///
+/// For each property that participates in Constraint or DerivInput edges, we
+/// collect those edges and sort them by the opposite endpoint's position:
+/// `(layer_index, item_position + prop_fraction)`.  Anchor edges are skipped
+/// (they use center ports).
+pub fn compute_edge_port_order(
+    graph: &Graph,
+    layers: &[LayerEntry],
+    long_edges: &[LongEdge],
+    prop_order: &PropertyOrder,
+) -> EdgePortOrder {
+    let layer_map = build_layer_map(layers);
+
+    // For each property, collect (sort_key, edge_id) pairs.
+    let mut prop_entries: HashMap<PropId, Vec<(f64, f64, EdgeId)>> = HashMap::new();
+
+    for (idx, edge) in graph.edges.iter().enumerate() {
+        let edge_id = EdgeId(idx as u32);
+        match edge {
+            Edge::Anchor { .. } => {} // center ports, skip
+            Edge::Constraint { source_prop, dest_prop, .. } => {
+                // For source_prop: opposite endpoint is dest_prop
+                if let Some(key) = opposite_sort_key(*dest_prop, graph, layers, &layer_map, long_edges, prop_order) {
+                    prop_entries.entry(*source_prop).or_default().push((key.0, key.1, edge_id));
+                }
+                // For dest_prop: opposite endpoint is source_prop
+                if let Some(key) = opposite_sort_key(*source_prop, graph, layers, &layer_map, long_edges, prop_order) {
+                    prop_entries.entry(*dest_prop).or_default().push((key.0, key.1, edge_id));
+                }
+            }
+            Edge::DerivInput { source_prop, target_deriv, .. } => {
+                // For source_prop: opposite endpoint is the derivation
+                let elem = LayerElement::Derivation(*target_deriv);
+                if let Some(&layer_idx) = layer_map.get(&elem) {
+                    let layer = &layers[layer_idx as usize];
+                    let item_pos = position_of_element(&elem, layer).unwrap_or(0.0);
+                    prop_entries.entry(*source_prop).or_default().push((layer_idx as f64, item_pos, edge_id));
+                }
+            }
+        }
+    }
+
+    // Sort each property's edges by (layer_idx, item_pos + prop_fraction)
+    let mut result = EdgePortOrder::new();
+    for (prop_id, mut entries) in prop_entries {
+        entries.sort_by(|a, b| {
+            a.0.partial_cmp(&b.0).unwrap()
+                .then(a.1.partial_cmp(&b.1).unwrap())
+        });
+        result.insert(prop_id, entries.into_iter().map(|(_, _, eid)| eid).collect());
+    }
+
+    result
+}
+
+/// Compute the sort key for the opposite endpoint of a property-level edge.
+/// Returns `(layer_index, item_position + prop_fraction)`.
+fn opposite_sort_key(
+    opposite_prop: PropId,
+    graph: &Graph,
+    layers: &[LayerEntry],
+    layer_map: &HashMap<LayerElement, u32>,
+    _long_edges: &[LongEdge],
+    prop_order: &PropertyOrder,
+) -> Option<(f64, f64)> {
+    let node_id = graph.properties[opposite_prop.index()].node;
+    let elem = LayerElement::Node(node_id);
+    let layer_idx = *layer_map.get(&elem)? as usize;
+    let layer = layers.get(layer_idx)?;
+    let item_pos = position_of_element(&elem, layer)?;
+
+    let num_props = prop_order.num_props(node_id);
+    let prop_idx = prop_order.prop_index(node_id, opposite_prop).unwrap_or(0);
+    let prop_fraction = if num_props > 0 {
+        (prop_idx as f64 + 1.0) / (num_props as f64 + 1.0)
+    } else {
+        0.5
+    };
+
+    Some((layer_idx as f64, item_pos + prop_fraction))
 }
 
 /// Update long edge position maps to reflect current layer orderings.
+/// Compute port side assignments from layer-space positions.
+///
+/// This is the layer-space equivalent of `routing::assign_port_sides()`, run
+/// during crossing minimization so that port sides co-optimize with property
+/// ordering.  Phase 6a (`refine_port_sides`) later overrides cross-domain
+/// bracket routing cases that require coordinate-space domain geometry.
+fn compute_layer_space_port_sides(
+    graph: &Graph,
+    layers: &[LayerEntry],
+) -> PortSideAssignment {
+    let layer_map = build_layer_map(layers);
+    let mut sides = PortSideAssignment::new();
+    let mut same_pos_counter: HashMap<NodeId, usize> = HashMap::new();
+
+    for (idx, edge) in graph.edges.iter().enumerate() {
+        let edge_id = EdgeId(idx as u32);
+
+        match edge {
+            Edge::Anchor { .. } => {} // center ports, no side
+            Edge::Constraint { source_prop, dest_prop, .. } => {
+                let src_node = graph.properties[source_prop.index()].node;
+                let dst_node = graph.properties[dest_prop.index()].node;
+
+                if src_node == dst_node {
+                    // Same-node constraint: always Right
+                    sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
+                    sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
+                } else {
+                    assign_side_between_nodes(
+                        &layer_map, layers,
+                        LayerElement::Node(src_node),
+                        LayerElement::Node(dst_node),
+                        edge_id, &mut sides, &mut same_pos_counter,
+                        src_node,
+                    );
+                }
+            }
+            Edge::DerivInput { source_prop, target_deriv } => {
+                let src_node = graph.properties[source_prop.index()].node;
+                let src_elem = LayerElement::Node(src_node);
+                let dst_elem = LayerElement::Derivation(*target_deriv);
+
+                // For DerivInput, derive a dummy node for the counter (use src_node).
+                let src_pos = layer_map.get(&src_elem)
+                    .and_then(|&l| position_of_element(&src_elem, &layers[l as usize]));
+                let dst_pos = layer_map.get(&dst_elem)
+                    .and_then(|&l| position_of_element(&dst_elem, &layers[l as usize]));
+
+                match (src_pos, dst_pos) {
+                    (Some(sp), Some(dp)) if (sp - dp).abs() > 0.01 => {
+                        if sp < dp {
+                            sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
+                            sides.insert((edge_id, EndpointRole::Downstream), PortSide::Left);
+                        } else {
+                            sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
+                            sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
+                        }
+                    }
+                    _ => {
+                        // Same position or missing: alternate
+                        let cnt = same_pos_counter.entry(src_node).or_insert(0);
+                        let side = if (*cnt).is_multiple_of(2) { PortSide::Right } else { PortSide::Left };
+                        *cnt += 1;
+                        sides.insert((edge_id, EndpointRole::Upstream), side);
+                        sides.insert((edge_id, EndpointRole::Downstream), side);
+                    }
+                }
+            }
+        }
+    }
+
+    sides
+}
+
+/// Helper: assign Left/Right sides for a constraint between different nodes
+/// based on their layer-space positions.
+#[allow(clippy::too_many_arguments)]
+fn assign_side_between_nodes(
+    layer_map: &HashMap<LayerElement, u32>,
+    layers: &[LayerEntry],
+    src_elem: LayerElement,
+    dst_elem: LayerElement,
+    edge_id: EdgeId,
+    sides: &mut PortSideAssignment,
+    same_pos_counter: &mut HashMap<NodeId, usize>,
+    src_node: NodeId,
+) {
+    let src_pos = layer_map.get(&src_elem)
+        .and_then(|&l| position_of_element(&src_elem, &layers[l as usize]));
+    let dst_pos = layer_map.get(&dst_elem)
+        .and_then(|&l| position_of_element(&dst_elem, &layers[l as usize]));
+
+    match (src_pos, dst_pos) {
+        (Some(sp), Some(dp)) if (sp - dp).abs() > 0.01 => {
+            if sp < dp {
+                sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
+                sides.insert((edge_id, EndpointRole::Downstream), PortSide::Left);
+            } else {
+                sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
+                sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
+            }
+        }
+        _ => {
+            // Same position or missing — alternate via per-node counter
+            let cnt = same_pos_counter.entry(src_node).or_insert(0);
+            let side = if (*cnt).is_multiple_of(2) { PortSide::Right } else { PortSide::Left };
+            *cnt += 1;
+            sides.insert((edge_id, EndpointRole::Upstream), side);
+            sides.insert((edge_id, EndpointRole::Downstream), side);
+        }
+    }
+}
+
 fn update_long_edge_positions(layers: &[LayerEntry], long_edges: &mut [LongEdge]) {
     for le in long_edges.iter_mut() {
         for (&layer_idx, pos) in le.positions.iter_mut() {
@@ -1388,13 +1676,18 @@ mod tests {
         let mut long_edges = vec![];
 
         // Verify initial crossings exist
-        let initial = count_all_crossings(&layers, &graph, &PropertyOrder::from_graph(&graph), &long_edges);
+        let initial = count_all_crossings(
+            &layers, &graph, &PropertyOrder::from_graph(&graph), &long_edges,
+            &EdgePortOrder::new(), &PortSideAssignment::new(),
+        );
         assert!(initial > 0, "Expected initial crossings, got {}", initial);
 
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
 
-        let final_crossings =
-            count_all_crossings(&layers, &graph, &PropertyOrder::from_graph(&graph), &long_edges);
+        let final_crossings = count_all_crossings(
+            &layers, &graph, &PropertyOrder::from_graph(&graph), &long_edges,
+            &EdgePortOrder::new(), &PortSideAssignment::new(),
+        );
         assert!(
             final_crossings <= initial,
             "Crossings should not increase: initial={}, final={}",
@@ -1469,16 +1762,20 @@ mod tests {
             &graph,
             &PropertyOrder::from_graph(&graph),
             &long_edges,
+            &EdgePortOrder::new(),
+            &PortSideAssignment::new(),
         );
         assert!(initial > 0, "Expected initial crossings");
 
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
 
         let final_crossings = count_all_crossings(
             &layers,
             &graph,
             &PropertyOrder::from_graph(&graph),
             &long_edges,
+            &EdgePortOrder::new(),
+            &PortSideAssignment::new(),
         );
         assert_eq!(
             final_crossings, 0,
@@ -1555,7 +1852,7 @@ mod tests {
             },
         }];
 
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
 
         // After minimization the segment should maintain a reasonable position.
         // The key check: it compiles and runs without panics, and the segment
@@ -1618,7 +1915,7 @@ mod tests {
         let graph = make_graph(vec![], vec![], vec![], vec![]);
         let mut layers: Vec<LayerEntry> = vec![];
         let mut long_edges = vec![];
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
         assert!(layers.is_empty());
     }
 
@@ -1633,7 +1930,7 @@ mod tests {
             items: vec![LayerItem::Node(NodeId(0))],
         }];
         let mut long_edges = vec![];
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
         assert_eq!(layers.len(), 1);
     }
 
@@ -1683,16 +1980,20 @@ mod tests {
             &graph,
             &PropertyOrder::from_graph(&graph),
             &long_edges,
+            &EdgePortOrder::new(),
+            &PortSideAssignment::new(),
         );
         assert_eq!(initial, 6, "Expected 6 initial crossing cost (3+3)");
 
-        minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let _ = minimize_crossings(&mut layers, &mut long_edges, &graph);
 
         let final_crossings = count_all_crossings(
             &layers,
             &graph,
             &PropertyOrder::from_graph(&graph),
             &long_edges,
+            &EdgePortOrder::new(),
+            &PortSideAssignment::new(),
         );
         assert_eq!(final_crossings, 0, "Expected 0 crossings after minimization");
 
@@ -1766,7 +2067,7 @@ mod tests {
         ];
         let mut long_edges = vec![];
 
-        let prop_order = minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let (prop_order, _, _) = minimize_crossings(&mut layers, &mut long_edges, &graph);
 
         let final_order = prop_order.props_of(NodeId(0));
 
@@ -1841,7 +2142,7 @@ mod tests {
         ];
         let mut long_edges = vec![];
 
-        let prop_order = minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let (prop_order, _, _) = minimize_crossings(&mut layers, &mut long_edges, &graph);
         let final_order = prop_order.props_of(NodeId(0));
 
         let pos_of = |pid: PropId| -> usize {
@@ -1928,7 +2229,7 @@ mod tests {
         ];
         let mut long_edges = vec![];
 
-        let prop_order = minimize_crossings(&mut layers, &mut long_edges, &graph);
+        let (prop_order, _, _) = minimize_crossings(&mut layers, &mut long_edges, &graph);
         let final_order = prop_order.props_of(NodeId(0));
 
         let pos_of = |pid: PropId| -> usize {
@@ -1956,5 +2257,130 @@ mod tests {
             "Same-node constraints should be uncrossed: order {:?}",
             final_order
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test: EdgePortOrder sorted by opposite layer position
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_edge_port_order_sorted_by_opposite_position() {
+        // 1 source node with 1 property in layer 0,
+        // 3 target nodes at different positions in layer 1.
+        // 3 constraints from same source prop to different targets (scrambled order).
+        // Verify EdgePortOrder sorts by target position.
+        let nodes = vec![
+            make_node(0, "Src", vec![0]),
+            make_node(1, "TgtA", vec![1]),
+            make_node(2, "TgtB", vec![2]),
+            make_node(3, "TgtC", vec![3]),
+        ];
+        let properties = vec![
+            make_prop(0, 0, "src_p"),
+            make_prop(1, 1, "tgt_a"),
+            make_prop(2, 2, "tgt_b"),
+            make_prop(3, 3, "tgt_c"),
+        ];
+        // Edges defined in scrambled order: to TgtC, TgtA, TgtB
+        let edges = vec![
+            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(2), operation: None },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(3), operation: None },
+            Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(3), operation: None }, // edge 3 -> TgtC
+            Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(1), operation: None }, // edge 4 -> TgtA
+            Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(2), operation: None }, // edge 5 -> TgtB
+        ];
+        let graph = make_graph(nodes, properties, vec![], edges);
+
+        // Layer 0: [Src], Layer 1: [TgtA, TgtB, TgtC] in position order
+        let mut layers = vec![
+            LayerEntry { items: vec![LayerItem::Node(NodeId(0))] },
+            LayerEntry { items: vec![
+                LayerItem::Node(NodeId(1)),
+                LayerItem::Node(NodeId(2)),
+                LayerItem::Node(NodeId(3)),
+            ]},
+        ];
+        let mut long_edges = vec![];
+
+        let (_, edge_port_order, _) = minimize_crossings(&mut layers, &mut long_edges, &graph);
+
+        // Source prop (PropId(0)) should have edges sorted by target position:
+        // TgtA(pos 0) → edge 4, TgtB(pos 1) → edge 5, TgtC(pos 2) → edge 3
+        let src_edges = &edge_port_order[&PropId(0)];
+        assert_eq!(src_edges.len(), 3, "Source prop should have 3 edges");
+
+        // The edges should be in target position order
+        let target_positions: Vec<usize> = src_edges.iter().map(|&eid| {
+            match &graph.edges[eid.index()] {
+                Edge::Constraint { dest_prop, .. } => {
+                    let dest_node = graph.properties[dest_prop.index()].node;
+                    layers[1].items.iter().position(|item| matches!(item, LayerItem::Node(n) if *n == dest_node)).unwrap()
+                }
+                _ => panic!("Expected constraint"),
+            }
+        }).collect();
+
+        assert!(
+            target_positions.windows(2).all(|w| w[0] <= w[1]),
+            "Edges should be sorted by target position, got positions: {:?}",
+            target_positions
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test: EdgePortOrder for same-node constraints
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_edge_port_order_same_node_constraints() {
+        // Node with 4 properties, same-node constraints between non-adjacent properties.
+        // Verify ordering reflects property position within the node.
+        let nodes = vec![
+            make_node(0, "N", vec![0, 1, 2, 3]),
+            make_node(1, "Dummy", vec![]),
+        ];
+        let properties = vec![
+            make_prop(0, 0, "p0"),
+            make_prop(1, 0, "p1"),
+            make_prop(2, 0, "p2"),
+            make_prop(3, 0, "p3"),
+        ];
+        let edges = vec![
+            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None },
+            // p0 -> p3 (scrambled: target further down)
+            Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(3), operation: None },
+            // p0 -> p1 (target closer up)
+            Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(1), operation: None },
+        ];
+        let graph = make_graph(nodes, properties, vec![], edges);
+
+        let mut layers = vec![
+            LayerEntry { items: vec![LayerItem::Node(NodeId(0))] },
+            LayerEntry { items: vec![LayerItem::Node(NodeId(1))] },
+        ];
+        let mut long_edges = vec![];
+
+        let (prop_order, edge_port_order, _) = minimize_crossings(&mut layers, &mut long_edges, &graph);
+
+        // PropId(0) has two edges. The ordering should reflect opposite prop position.
+        if let Some(edges_for_p0) = edge_port_order.get(&PropId(0)) {
+            assert_eq!(edges_for_p0.len(), 2);
+
+            // Edge to p1 should come before edge to p3 (p1 has lower prop index)
+            let dest_indices: Vec<usize> = edges_for_p0.iter().map(|&eid| {
+                match &graph.edges[eid.index()] {
+                    Edge::Constraint { dest_prop, .. } => {
+                        let node_id = graph.properties[dest_prop.index()].node;
+                        prop_order.prop_index(node_id, *dest_prop).unwrap()
+                    }
+                    _ => panic!("Expected constraint"),
+                }
+            }).collect();
+
+            assert!(
+                dest_indices.windows(2).all(|w| w[0] <= w[1]),
+                "Same-node constraint edges should be sorted by dest prop position, got: {:?}",
+                dest_indices
+            );
+        }
     }
 }

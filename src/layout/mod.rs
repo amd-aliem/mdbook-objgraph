@@ -258,6 +258,9 @@ pub enum EndpointRole {
     Downstream,
 }
 
+/// The port side assignments for all edge endpoints.
+pub type PortSideAssignment = std::collections::HashMap<(EdgeId, EndpointRole), PortSide>;
+
 // ---------------------------------------------------------------------------
 // Node / derivation dimension helpers
 // ---------------------------------------------------------------------------
@@ -530,8 +533,9 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     // Phase 3a: Build layers with long edge segments
     let (mut layers, mut long_edges) = long_edge::build_layers(&assignment, graph);
 
-    // Phase 3b: Crossing minimization
-    let prop_order = crossing::minimize_crossings(&mut layers, &mut long_edges, graph);
+    // Phase 3b: Crossing minimization (also computes edge port ordering + port sides)
+    let (prop_order, edge_port_order, layer_port_sides) =
+        crossing::minimize_crossings(&mut layers, &mut long_edges, graph);
 
     // Phase 4: Coordinate assignment (Brandes-Köpf)
     let (mut node_layouts, mut deriv_layouts) =
@@ -568,10 +572,15 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     // final node/domain positions.
     normalize_positions(&mut node_layouts, &mut deriv_layouts, &mut domain_layouts);
 
-    // Phase 6a: Port side assignment
-    let port_sides = routing::assign_port_sides(graph, &node_layouts, &deriv_layouts, &domain_layouts);
+    // Phase 6a: Refine port sides for cross-domain bracket routing.
+    // Layer-space port sides from Phase 3b are co-optimized with property ordering.
+    // This pass only overrides cross-domain bracket routing and DerivInput cases
+    // that require coordinate-space domain geometry.
+    let port_sides = routing::refine_port_sides(
+        graph, &node_layouts, &deriv_layouts, &domain_layouts, &layer_port_sides,
+    );
 
-    // Phase 6b: Edge routing (corridor-based)
+    // Phase 6b: Edge routing (corridor-based, with integrated port ordering)
     let routes = routing::route_all_edges(
         graph,
         &node_layouts,
@@ -579,6 +588,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         &domain_layouts,
         &port_sides,
         &prop_order,
+        &edge_port_order,
     );
 
     // Classify edges into anchors, derivation edges, and constraints
