@@ -254,3 +254,97 @@ fn sev_snp_realistic_domain_contiguity() {
     );
 }
 
+// ── New error-class assertions ───────────────────────────────────────
+
+#[test]
+fn sev_snp_no_node_deriv_overlaps() {
+    let input = include_str!("sev_snp_input.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.node_deriv_overlaps.is_empty(),
+        "Nodes must not overlap derivation pills: {:?}",
+        report.node_deriv_overlaps
+    );
+}
+
+#[test]
+fn sev_snp_no_deriv_deriv_overlaps() {
+    let input = include_str!("sev_snp_input.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.deriv_deriv_overlaps.is_empty(),
+        "Derivation pills must not overlap each other: {:?}",
+        report.deriv_deriv_overlaps
+    );
+}
+
+#[test]
+fn sev_snp_no_intra_edges_in_wrong_corridor() {
+    let input = include_str!("sev_snp_input.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.intra_edges_in_wrong_corridor.is_empty(),
+        "Intra-domain edges must not route through another domain's corridor: {:?}",
+        report.intra_edges_in_wrong_corridor
+    );
+}
+
+#[test]
+fn sev_snp_realistic_no_node_deriv_overlaps() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.node_deriv_overlaps.is_empty(),
+        "Nodes must not overlap derivation pills: {:?}",
+        report.node_deriv_overlaps
+    );
+}
+
+#[test]
+fn sev_snp_realistic_no_deriv_deriv_overlaps() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.deriv_deriv_overlaps.is_empty(),
+        "Derivation pills must not overlap each other: {:?}",
+        report.deriv_deriv_overlaps
+    );
+}
+
+#[test]
+fn sev_snp_realistic_no_intra_edges_in_wrong_corridor() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    assert!(
+        report.intra_edges_in_wrong_corridor.is_empty(),
+        "Intra-domain edges must not route through another domain's corridor: {:?}",
+        report.intra_edges_in_wrong_corridor
+    );
+}
+
+// ── Symmetry baseline assertion ──────────────────────────────────────
+
+#[test]
+fn sev_snp_visual_balance() {
+    let input = include_str!("sev_snp_input.obgraph");
+    let report = run_quality(input);
+    eprintln!("Visual balance: {:.3}", report.visual_balance);
+    assert!(
+        report.visual_balance < 0.15,
+        "Layout should be reasonably centered: balance {:.3} (threshold 0.15)",
+        report.visual_balance,
+    );
+}
+
+#[test]
+fn sev_snp_realistic_visual_balance() {
+    let input = include_str!("sev_snp_realistic.obgraph");
+    let report = run_quality(input);
+    eprintln!("Visual balance: {:.3}", report.visual_balance);
+    assert!(
+        report.visual_balance < 0.15,
+        "Layout should be reasonably centered: balance {:.3} (threshold 0.15)",
+        report.visual_balance,
+    );
+}
+

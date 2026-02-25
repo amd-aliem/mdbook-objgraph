@@ -217,6 +217,13 @@ impl EdgeLabel {
             _ => (self.x - w / 2.0, self.x + w / 2.0),
         }
     }
+
+    /// Full AABB as (left_x, top_y, width, height).
+    /// SVG text y is the baseline; ascent ≈ font_size above it.
+    pub fn bounding_box(&self) -> (f64, f64, f64, f64) {
+        let (left_x, right_x) = self.bounding_x();
+        (left_x, self.y - self.font_size, right_x - left_x, self.font_size)
+    }
 }
 
 #[derive(Debug, Clone)]
