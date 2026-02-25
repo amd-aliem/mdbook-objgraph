@@ -1135,35 +1135,83 @@ fn collapse_zero_length(segments: Vec<Segment>) -> Vec<Segment> {
 /// lands exactly at the target boundary (markers use refX="0").
 fn shorten_route_for_arrowhead(route: &mut Route) {
     let amount = super::ARROWHEAD_SIZE;
-    loop {
-        let seg = match route.segments.last_mut() {
-            Some(s) => s,
-            None => return,
-        };
-        let len = seg.length();
-        if len > amount + 0.001 {
-            // Shorten the last segment by `amount`.
-            match seg {
+    if route.segments.is_empty() {
+        return;
+    }
+
+    let last_len = route.segments.last().unwrap().length();
+
+    if last_len >= amount + 0.001 {
+        // Last segment is long enough — shorten it directly.
+        let seg = route.segments.last_mut().unwrap();
+        match seg {
+            Segment::Horizontal { x_end, x_start, .. } => {
+                if *x_end >= *x_start {
+                    *x_end -= amount;
+                } else {
+                    *x_end += amount;
+                }
+            }
+            Segment::Vertical { y_end, y_start, .. } => {
+                if *y_end >= *y_start {
+                    *y_end -= amount;
+                } else {
+                    *y_end += amount;
+                }
+            }
+        }
+    } else if route.segments.len() >= 2 {
+        // Last segment is shorter than the arrowhead.  Absorb it entirely
+        // and take the excess from the penultimate segment, then re-attach
+        // a minimal-length final segment so the arrowhead marker still
+        // points in the original direction.
+        let overflow = amount - last_len;
+        let final_seg = route.segments.pop().unwrap();
+
+        // Shorten the (now-last) penultimate segment by the overflow.
+        if let Some(pen) = route.segments.last_mut() {
+            match pen {
                 Segment::Horizontal { x_end, x_start, .. } => {
                     if *x_end >= *x_start {
-                        *x_end -= amount;
+                        *x_end -= overflow;
                     } else {
-                        *x_end += amount;
+                        *x_end += overflow;
                     }
                 }
                 Segment::Vertical { y_end, y_start, .. } => {
                     if *y_end >= *y_start {
-                        *y_end -= amount;
+                        *y_end -= overflow;
                     } else {
-                        *y_end += amount;
+                        *y_end += overflow;
                     }
                 }
             }
-            return;
         }
-        // Segment is too short; remove it entirely and try the next one.
-        route.segments.pop();
+
+        // Re-attach the final segment, starting from the new endpoint of
+        // the penultimate segment with near-zero length (preserves arrow direction).
+        let new_start = route.segments.last().map(|s| s.end()).unwrap_or((0.0, 0.0));
+        let reattached = match final_seg {
+            Segment::Horizontal { x_start, x_end, .. } => {
+                let dir = if x_end >= x_start { 1.0 } else { -1.0 };
+                Segment::Horizontal {
+                    y: new_start.1,
+                    x_start: new_start.0,
+                    x_end: new_start.0 + dir * 0.01,
+                }
+            }
+            Segment::Vertical { y_start, y_end, .. } => {
+                let dir = if y_end >= y_start { 1.0 } else { -1.0 };
+                Segment::Vertical {
+                    x: new_start.0,
+                    y_start: new_start.1,
+                    y_end: new_start.1 + dir * 0.01,
+                }
+            }
+        };
+        route.segments.push(reattached);
     }
+    // If only one segment and it's too short, leave as-is.
 }
 
 // ---------------------------------------------------------------------------

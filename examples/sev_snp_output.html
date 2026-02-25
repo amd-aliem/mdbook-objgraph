@@ -1,5 +1,5 @@
-Wrote examples/sev_snp_output.html (56669 bytes)
-><title>SEV-SNP + TPM Attestation</title>
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>SEV-SNP + TPM Attestation</title>
 <style>body { margin: 20px; background: #f0f0f0; }</style>
 </head><body>
 <h1>SEV-SNP + TPM Attestation Graph</h1>
@@ -127,8 +127,7 @@ Wrote examples/sev_snp_output.html (56669 bytes)
 
 /* Dotted stub pattern */
 .obgraph-constraint-stub.obgraph-stub-dotted {
-  stroke-dasharray: 1 3;
-  stroke-linecap: round;
+  stroke-dasharray: 2 2;
 }
 
 /* Invalid stubs — red dashed (same dash pattern as other invalid edges) */
@@ -334,13 +333,13 @@ Wrote examples/sev_snp_output.html (56669 bytes)
         <text class="obgraph-constraint-label" x="200" y="144" fill="#60a5fa" text-anchor="start" dominant-baseline="central">self_signed</text>
         <path class="obgraph-constraint" d="M32,114 L24,114 L24,254 L26,254" data-edge="16" marker-end="url(#arrow-constraint-valid)"/>
         <text class="obgraph-constraint-label" x="20" y="184" fill="#60a5fa" text-anchor="end" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint" d="M32,154 L28,154 L28,228" data-edge="15" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint" d="M32,154 L28,154 L28,232 L28.01,232" data-edge="15" marker-end="url(#arrow-constraint-valid)"/>
         <path class="obgraph-constraint" d="M32,314 L24,314 L24,414 L26,414" data-edge="19" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-invalid" d="M32,334 L28,334 L28,428" data-edge="20" marker-end="url(#arrow-constraint-invalid)"/>
-        <text class="obgraph-constraint-label" x="24" y="381" fill="#ef4444" text-anchor="end" dominant-baseline="central">verified_by</text>
+        <path class="obgraph-constraint-invalid" d="M32,334 L28,334 L28,432 L28.01,432" data-edge="20" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="24" y="383" fill="#ef4444" text-anchor="end" dominant-baseline="central">verified_by</text>
         <path class="obgraph-constraint-invalid" d="M32,514 L24,514 L24,614 L26,614" data-edge="23" marker-end="url(#arrow-constraint-invalid)"/>
         <text class="obgraph-constraint-label" x="20" y="564" fill="#ef4444" text-anchor="end" dominant-baseline="central">verified_by</text>
-        <path class="obgraph-constraint-invalid" d="M32,534 L28,534 L28,628" data-edge="24" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-invalid" d="M32,534 L28,534 L28,632 L28.01,632" data-edge="24" marker-end="url(#arrow-constraint-invalid)"/>
         <path class="obgraph-constraint" d="M444,698 L452,698 L452,682 L450,682" data-edge="25" marker-end="url(#arrow-constraint-valid)"/>
         <text class="obgraph-constraint-label" x="456" y="690" fill="#60a5fa" text-anchor="start" dominant-baseline="central">self_signed</text>
         <path class="obgraph-constraint" d="M444,662 L456,662 L456,802 L450,802" data-edge="29" marker-end="url(#arrow-constraint-valid)"/>
@@ -377,19 +376,19 @@ Wrote examples/sev_snp_output.html (56669 bytes)
         <path class="obgraph-constraint-full obgraph-constraint-invalid" d="M288,1182 L212,1182 L212,634 L194,634" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
       </g>
       <g class="obgraph-constraint-stubs">
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,74 L194,74" data-edge="13" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,94 L194,94" data-edge="14" data-participants="0,2" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,274 L194,274" data-edge="17" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,294 L194,294" data-edge="18" data-participants="0,3" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,454 L194,454" data-edge="21" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,474 L194,474" data-edge="22" data-participants="0,4" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,622 L450,622" data-edge="26" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,642 L450,642" data-edge="27" data-participants="0,8" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,822 L450,822" data-edge="30" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,842 L450,842" data-edge="31" data-participants="0,9" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,814 L194,814" data-edge="40" data-participants="1,13" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,1062 L450,1062" data-edge="41" data-participants="1,11" marker-end="url(#arrow-constraint-valid)"/>
-        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-dotted" d="M204,634 L194,634" data-edge="39" data-participants="12,5" marker-end="url(#arrow-constraint-invalid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,74 L194,74" data-edge="13" data-participants="0,2"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,94 L194,94" data-edge="14" data-participants="0,2"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,274 L194,274" data-edge="17" data-participants="0,3"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,294 L194,294" data-edge="18" data-participants="0,3"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,454 L194,454" data-edge="21" data-participants="0,4"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,474 L194,474" data-edge="22" data-participants="0,4"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,622 L450,622" data-edge="26" data-participants="0,8"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,642 L450,642" data-edge="27" data-participants="0,8"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,822 L450,822" data-edge="30" data-participants="0,9"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,842 L450,842" data-edge="31" data-participants="0,9"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M204,814 L194,814" data-edge="40" data-participants="1,13"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M460,1062 L450,1062" data-edge="41" data-participants="1,11"/>
+        <path class="obgraph-constraint-stub obgraph-constraint-stub-invalid obgraph-stub-dotted" d="M204,634 L194,634" data-edge="39" data-participants="12,5"/>
       </g>
       <g class="obgraph-deriv-chains">
       </g>
