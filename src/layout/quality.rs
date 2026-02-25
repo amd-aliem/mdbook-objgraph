@@ -1362,6 +1362,29 @@ fn find_inter_domain_edges_in_intra_corridors(
     violations
 }
 
+/// Returns true if both edges are constraints connecting the same pair of
+/// nodes (in either direction).  Used to exempt bundled corridor sharing
+/// from channel collision errors.
+fn same_node_pair_constraints(graph: &Graph, a: EdgeId, b: EdgeId) -> bool {
+    let pair = |eid: EdgeId| -> Option<(NodeId, NodeId)> {
+        if let Edge::Constraint { source_prop, dest_prop, .. } = &graph.edges[eid.index()] {
+            let sn = graph.properties[source_prop.index()].node;
+            let dn = graph.properties[dest_prop.index()].node;
+            if sn.index() <= dn.index() {
+                Some((sn, dn))
+            } else {
+                Some((dn, sn))
+            }
+        } else {
+            None
+        }
+    };
+    match (pair(a), pair(b)) {
+        (Some(pa), Some(pb)) => pa == pb,
+        _ => false,
+    }
+}
+
 /// Find pairs of edges that share the same vertical channel x-coordinate
 /// while their y-ranges overlap (channel collision).
 ///
@@ -1441,6 +1464,12 @@ fn find_channel_collisions(
             if (x_a - x_b).abs() < 0.5 && y_max_a > y_min_b + 0.5 && y_max_b > y_min_a + 0.5 {
                 // Exempt center-port edges that share a node or derivation.
                 if both_center_port(eid_a, eid_b) && shares_endpoint(eid_a, eid_b) {
+                    continue;
+                }
+                // Exempt constraint edges between the same node pair — these
+                // intentionally share a corridor channel (bundle routing) to
+                // prevent horizontal-vs-vertical crossing artifacts.
+                if same_node_pair_constraints(graph, eid_a, eid_b) {
                     continue;
                 }
                 collisions.push((eid_a, eid_b));

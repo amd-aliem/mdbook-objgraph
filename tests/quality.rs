@@ -347,4 +347,3 @@ fn sev_snp_realistic_visual_balance() {
         report.visual_balance,
     );
 }
-
