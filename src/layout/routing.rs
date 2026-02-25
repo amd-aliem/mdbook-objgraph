@@ -472,6 +472,8 @@ pub fn refine_port_sides(
     layer_sides: &PortSideAssignment,
 ) -> PortSideAssignment {
     let mut sides = layer_sides.clone();
+    let mut node_side_counter: std::collections::HashMap<NodeId, usize> =
+        std::collections::HashMap::new();
 
     for (idx, edge) in graph.edges.iter().enumerate() {
         let edge_id = EdgeId(idx as u32);
@@ -482,13 +484,65 @@ pub fn refine_port_sides(
                 let src_node = prop_node(graph, *source_prop);
                 let dst_node = prop_node(graph, *dest_prop);
 
-                // Only override for cross-domain bracket routing.
-                if src_node != dst_node
-                    && let Some(outer_side) =
-                        same_column_outer_side(graph, src_node, dst_node, domain_layouts)
+                // Same-node constraints: alternate Left/Right using per-node
+                // counter to spread edges across both corridors. Layer-space
+                // assigns all same-node to Right, which overloads one corridor.
+                if src_node == dst_node {
+                    let cnt = node_side_counter.entry(src_node).or_insert(0);
+                    let side = if (*cnt).is_multiple_of(2) {
+                        PortSide::Right
+                    } else {
+                        PortSide::Left
+                    };
+                    *cnt += 1;
+                    sides.insert((edge_id, EndpointRole::Upstream), side);
+                    sides.insert((edge_id, EndpointRole::Downstream), side);
+                    continue;
+                }
+
+                // Cross-domain same-column: bracket routing through outer corridor.
+                if let Some(outer_side) =
+                    same_column_outer_side(graph, src_node, dst_node, domain_layouts)
                 {
                     sides.insert((edge_id, EndpointRole::Upstream), outer_side);
                     sides.insert((edge_id, EndpointRole::Downstream), outer_side);
+                    continue;
+                }
+
+                // Different-node constraints: override with coordinate-space
+                // horizontal positions, which are more accurate than layer-space
+                // indices for determining exit/entry direction.
+                let src_nl = match find_node_layout(node_layouts, src_node) {
+                    Some(nl) => nl,
+                    None => continue,
+                };
+                let tgt_nl = match find_node_layout(node_layouts, dst_node) {
+                    Some(nl) => nl,
+                    None => continue,
+                };
+                let src_cx = src_nl.x + src_nl.width / 2.0;
+                let tgt_cx = tgt_nl.x + tgt_nl.width / 2.0;
+
+                if src_cx < tgt_cx {
+                    sides.insert((edge_id, EndpointRole::Upstream), PortSide::Right);
+                    sides.insert((edge_id, EndpointRole::Downstream), PortSide::Left);
+                } else if src_cx > tgt_cx {
+                    sides.insert((edge_id, EndpointRole::Upstream), PortSide::Left);
+                    sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
+                } else {
+                    // Same center x: use per-node counter to alternate sides,
+                    // spreading edges across both corridors.
+                    let cnt = node_side_counter.entry(src_node).or_insert(0);
+                    let side = if (*cnt).is_multiple_of(2) {
+                        PortSide::Right
+                    } else {
+                        PortSide::Left
+                    };
+                    *cnt += 1;
+                    sides.insert((edge_id, EndpointRole::Upstream), side);
+                    let cnt2 = node_side_counter.entry(dst_node).or_insert(0);
+                    *cnt2 += 1;
+                    sides.insert((edge_id, EndpointRole::Downstream), side);
                 }
             }
             Edge::DerivInput { source_prop, target_deriv } => {
