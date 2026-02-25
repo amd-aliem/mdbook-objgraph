@@ -121,7 +121,8 @@ pub fn css() -> &'static str {
 
 /* Dotted stub pattern */
 .obgraph-constraint-stub.obgraph-stub-dotted {
-  stroke-dasharray: 2 2;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
 }
 
 /* Invalid stubs — red dashed (same dash pattern as other invalid edges) */

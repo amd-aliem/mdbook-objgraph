@@ -254,20 +254,21 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     for cross in &layout.cross_domain_constraints {
         let participants_str = participants_attr(&cross.participants);
         let valid = is_edge_valid(cross.full_path.edge_id, graph, state);
-        let stub_class = if valid {
-            "obgraph-constraint-stub"
+        let (stub_class, stub_marker) = if valid {
+            ("obgraph-constraint-stub", "arrow-constraint-valid")
         } else {
-            "obgraph-constraint-stub obgraph-constraint-stub-invalid"
+            ("obgraph-constraint-stub obgraph-constraint-stub-invalid", "arrow-constraint-invalid")
         };
         for sp in &cross.stub_paths {
             if !sp.dotted_svg.is_empty() {
                 writeln!(
                     out,
-                    r#"        <path class="{cls} obgraph-stub-dotted" d="{d}" data-edge="{id}" data-participants="{p}"/>"#,
+                    r#"        <path class="{cls} obgraph-stub-dotted" d="{d}" data-edge="{id}" data-participants="{p}" marker-end="url(#{marker})"/>"#,
                     cls = stub_class,
                     d = sp.dotted_svg,
                     id = sp.edge_id.0,
                     p = participants_str,
+                    marker = stub_marker,
                 )
                 .unwrap();
             }
@@ -321,7 +322,7 @@ fn write_deriv_chains(out: &mut String, layout: &LayoutResult) {
             if !sp.dotted_svg.is_empty() {
                 writeln!(
                     out,
-                    r#"        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="{d}" data-edge="{id}" data-participants="{p}"/>"#,
+                    r#"        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="{d}" data-edge="{id}" data-participants="{p}" marker-end="url(#arrow-constraint-valid)"/>"#,
                     d = sp.dotted_svg,
                     id = sp.edge_id.0,
                     p = participants_str,
