@@ -89,6 +89,10 @@ pub struct QualityReport {
     pub labels_hidden_under_nodes: Vec<(EdgeId, NodeId)>,
     pub arrowheads_hidden_under_nodes: Vec<(EdgeId, NodeId)>,
     pub stubs_hidden_under_nodes: Vec<(EdgeId, NodeId)>,
+    /// Connected edges with segments hidden behind their own endpoint node.
+    /// Each entry is (edge_id, node_id, hidden_px, total_px) — the edge connects
+    /// to the node but a significant portion of its path is inside the node AABB.
+    pub connected_edge_occlusion: Vec<(EdgeId, NodeId, f64, f64)>,
 
     // ── Domain corridor correctness ──────────────────────────────────
     pub intra_edges_in_wrong_corridor: Vec<(EdgeId, DomainId)>,
@@ -186,6 +190,15 @@ impl QualityReport {
         lines.push(format!("    Labels hidden under nodes: {}", self.labels_hidden_under_nodes.len()));
         lines.push(format!("    Arrows hidden under nodes: {}", self.arrowheads_hidden_under_nodes.len()));
         lines.push(format!("    Stubs hidden under nodes:  {}", self.stubs_hidden_under_nodes.len()));
+        lines.push(format!("    Connected-edge occlusion:  {}", self.connected_edge_occlusion.len()));
+        if !self.connected_edge_occlusion.is_empty() {
+            for &(eid, nid, hidden, total) in &self.connected_edge_occlusion {
+                lines.push(format!(
+                    "      edge {} behind node {}: {:.0}/{:.0}px ({:.0}%)",
+                    eid.0, nid.0, hidden, total, hidden / total * 100.0
+                ));
+            }
+        }
 
         // ── Domain corridor correctness ──────────────────────────────
         lines.push(String::new());
@@ -303,6 +316,7 @@ impl QualityReport {
             + self.labels_hidden_under_nodes.len()
             + self.arrowheads_hidden_under_nodes.len()
             + self.stubs_hidden_under_nodes.len()
+            + self.connected_edge_occlusion.len()
     }
 }
 
@@ -480,6 +494,8 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
         find_arrowheads_hidden_under_nodes(graph, &layout.nodes, &all_arrowheads);
     let stubs_hidden_under_nodes =
         find_stubs_hidden_under_nodes(graph, &layout.nodes, &all_stubs);
+    let connected_edge_occlusion =
+        find_connected_edge_occlusion(graph, &layout.nodes, &parsed);
 
     // ── Domain corridor correctness ──────────────────────────────────
 
@@ -552,6 +568,7 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
         labels_hidden_under_nodes,
         arrowheads_hidden_under_nodes,
         stubs_hidden_under_nodes,
+        connected_edge_occlusion,
         intra_edges_in_wrong_corridor,
         visual_balance,
         max_column_centering_error,
@@ -2023,6 +2040,91 @@ fn find_stubs_hidden_under_nodes(
             let nb = Aabb::from_node(n);
             if segs.iter().all(|s| segment_fully_inside_aabb(s, &nb)) {
                 out.push((*eid, n.id));
+            }
+        }
+    }
+    out
+}
+
+/// Compute the length of a line segment that lies inside an AABB.
+/// Works for arbitrary segments but is especially efficient for axis-aligned
+/// (H or V) segments from orthogonal routing. Clips the segment to the AABB
+/// and returns the clipped length.
+fn segment_length_inside_aabb(seg: &LineSeg, aabb: &Aabb) -> f64 {
+    let ax = aabb.x;
+    let ay = aabb.y;
+    let bx = aabb.x + aabb.w;
+    let by = aabb.y + aabb.h;
+
+    // Liang-Barsky clipping for the segment against the AABB.
+    let dx = seg.x2 - seg.x1;
+    let dy = seg.y2 - seg.y1;
+
+    let mut t_min = 0.0_f64;
+    let mut t_max = 1.0_f64;
+
+    let clips = [
+        (-dx, seg.x1 - ax),  // left
+        (dx, bx - seg.x1),   // right
+        (-dy, seg.y1 - ay),  // top
+        (dy, by - seg.y1),   // bottom
+    ];
+
+    for &(p, q) in &clips {
+        if p.abs() < 1e-9 {
+            // Segment is parallel to this edge — check if it's outside
+            if q < 0.0 {
+                return 0.0;
+            }
+        } else {
+            let t = q / p;
+            if p < 0.0 {
+                t_min = t_min.max(t);
+            } else {
+                t_max = t_max.min(t);
+            }
+            if t_min > t_max {
+                return 0.0;
+            }
+        }
+    }
+
+    let seg_len = seg.length();
+    (t_max - t_min) * seg_len
+}
+
+/// Find connected edges with significant occlusion behind their own endpoint
+/// nodes. For each edge, measures how much total path length lies inside each
+/// endpoint node's AABB (using partial clipping, not just full containment).
+/// Returns entries where the hidden fraction exceeds 25%.
+fn find_connected_edge_occlusion(
+    graph: &Graph,
+    nodes: &[NodeLayout],
+    edges: &[(EdgeId, Vec<LineSeg>)],
+) -> Vec<(EdgeId, NodeId, f64, f64)> {
+    let mut out = Vec::new();
+    let node_aabbs: Vec<(NodeId, Aabb)> = nodes.iter().map(|n| (n.id, Aabb::from_node(n))).collect();
+
+    for &(eid, ref segs) in edges {
+        if segs.is_empty() {
+            continue;
+        }
+        let total_len: f64 = segs.iter().map(|s| s.length()).sum();
+        if total_len < 1.0 {
+            continue;
+        }
+
+        let (src_nid, dst_nid) = edge_endpoint_nodes(graph, eid);
+        let endpoint_nids: Vec<NodeId> = [src_nid, dst_nid].iter().filter_map(|n| *n).collect();
+
+        for &nid in &endpoint_nids {
+            let Some(nb) = node_aabbs.iter().find(|(id, _)| *id == nid).map(|(_, a)| a) else {
+                continue;
+            };
+            let hidden: f64 = segs.iter().map(|s| segment_length_inside_aabb(s, nb)).sum();
+            let fraction = hidden / total_len;
+            if fraction > 0.25 {
+                out.push((eid, nid, hidden, total_len));
             }
         }
     }
