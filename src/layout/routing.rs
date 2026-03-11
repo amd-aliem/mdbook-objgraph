@@ -1877,14 +1877,15 @@ fn fix_pill_fanout_order(graph: &Graph, routes: &mut [Route]) {
 /// ordering. The two passes are compatible because same-node pairs have
 /// adjacent source y values, so their relative order within the fan-out
 /// doesn't affect cross-pair crossings.
+struct FanoutEntry {
+    route_idx: usize,
+    corridor_x: f64,
+    src_y: f64,
+    src_x: f64,
+    approaches_from_right: bool, // src_x > corridor_x
+}
+
 fn fix_fanout_channel_order(graph: &Graph, routes: &mut [Route]) {
-    struct FanoutEntry {
-        route_idx: usize,
-        corridor_x: f64,
-        src_y: f64,
-        src_x: f64,
-        approaches_from_right: bool, // src_x > corridor_x
-    }
 
     let mut entries: Vec<FanoutEntry> = Vec::new();
 
@@ -1969,49 +1970,117 @@ fn fix_fanout_channel_order(graph: &Graph, routes: &mut [Route]) {
         let first = &entries[cluster_indices[0]];
         let is_right_corridor = first.corridor_x > first.src_x;
 
-        // Collect current corridor_x values and sort by distance from source
-        // (innermost first). If fewer unique x-values than edges (multiple
-        // edges share a channel), expand with additional channels so every
-        // edge gets a unique channel.
-        let ref_x = first.src_x;
-        let mut xs: Vec<f64> = cluster_indices.iter().map(|&ci| entries[ci].corridor_x).collect();
-        xs.sort_by(|a, b| {
-            let da = (*a - ref_x).abs();
-            let db = (*b - ref_x).abs();
-            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        // Ensure unique channels: if duplicates exist, expand outward.
-        xs.dedup_by(|a, b| (*a - *b).abs() < 0.5);
-        while xs.len() < cluster_indices.len() {
-            let last = *xs.last().unwrap();
-            xs.push(if is_right_corridor { last + CHANNEL_GAP } else { last - CHANNEL_GAP });
-        }
+        // Split the cluster into connected components based on vertical
+        // overlap.  Edges that don't overlap vertically can safely share
+        // a corridor channel, so they shouldn't compete for unique channels.
+        // This prevents channel expansion beyond corridor boundaries.
+        let components = vertical_connected_components(cluster_indices, &entries, routes);
 
-        // Sort cluster entries by src_y ascending (lowest enters first → outermost).
-        let mut sorted_indices: Vec<usize> = cluster_indices.clone();
-        sorted_indices.sort_by(|&a, &b| {
-            entries[a].src_y.partial_cmp(&entries[b].src_y).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        for component in &components {
+            if component.len() < 2 { continue; }
 
-        // Assign channels: entry with lowest src_y gets outermost (xs[last]),
-        // entry with highest src_y gets innermost (xs[0]).
-        let n = sorted_indices.len();
-        for (rank, &ci) in sorted_indices.iter().enumerate() {
-            let new_x = xs[n - 1 - rank]; // reverse: lowest src_y → outermost
-            let old_x = entries[ci].corridor_x;
-            if (new_x - old_x).abs() < 0.01 { continue; } // no change
-
-            let route = &mut routes[entries[ci].route_idx];
-
-            // Update the vertical segment x.
-            if let Segment::Vertical { x, .. } = &mut route.segments[1] {
-                *x = new_x;
+            // Collect current corridor_x values and sort by distance from
+            // source (innermost first).
+            let ref_x = entries[component[0]].src_x;
+            let mut xs: Vec<f64> = component.iter().map(|&ci| entries[ci].corridor_x).collect();
+            xs.sort_by(|a, b| {
+                let da = (*a - ref_x).abs();
+                let db = (*b - ref_x).abs();
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            xs.dedup_by(|a, b| (*a - *b).abs() < 0.5);
+            // Expand only if all edges in this component truly need unique
+            // channels (they all overlap vertically by construction).
+            while xs.len() < component.len() {
+                let last = *xs.last().unwrap();
+                xs.push(if is_right_corridor { last + CHANNEL_GAP } else { last - CHANNEL_GAP });
             }
-            // Update the horizontal segments' corridor-side endpoints.
-            update_corridor_endpoint(&mut route.segments[0], old_x, new_x, is_right_corridor);
-            update_corridor_endpoint(&mut route.segments[2], old_x, new_x, is_right_corridor);
+
+            // Sort component entries by src_y ascending (lowest enters first → outermost).
+            let mut sorted_indices: Vec<usize> = component.clone();
+            sorted_indices.sort_by(|&a, &b| {
+                entries[a].src_y.partial_cmp(&entries[b].src_y).unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            // Assign channels: entry with lowest src_y gets outermost (xs[last]),
+            // entry with highest src_y gets innermost (xs[0]).
+            let n = sorted_indices.len();
+            for (rank, &ci) in sorted_indices.iter().enumerate() {
+                let new_x = xs[n - 1 - rank];
+                let old_x = entries[ci].corridor_x;
+                if (new_x - old_x).abs() < 0.01 { continue; }
+
+                let route = &mut routes[entries[ci].route_idx];
+
+                if let Segment::Vertical { x, .. } = &mut route.segments[1] {
+                    *x = new_x;
+                }
+                update_corridor_endpoint(&mut route.segments[0], old_x, new_x, is_right_corridor);
+                update_corridor_endpoint(&mut route.segments[2], old_x, new_x, is_right_corridor);
+            }
         }
     }
+}
+
+/// Split a cluster of fanout entries into connected components based on
+/// vertical overlap.  Two edges are connected if their vertical spans
+/// (min(src_y, dst_y) to max(src_y, dst_y)) overlap.  Transitive
+/// connections form a component.
+fn vertical_connected_components(
+    cluster_indices: &[usize],
+    entries: &[FanoutEntry],
+    routes: &[Route],
+) -> Vec<Vec<usize>> {
+    if cluster_indices.is_empty() { return vec![]; }
+
+    // Extract vertical spans from routes.
+    let spans: Vec<(f64, f64)> = cluster_indices.iter().map(|&ci| {
+        let route = &routes[entries[ci].route_idx];
+        match &route.segments[1] {
+            Segment::Vertical { y_start, y_end, .. } => {
+                let lo = y_start.min(*y_end);
+                let hi = y_start.max(*y_end);
+                (lo, hi)
+            }
+            _ => (0.0, 0.0),
+        }
+    }).collect();
+
+    // Union-Find for connected components.
+    let n = cluster_indices.len();
+    let mut parent: Vec<usize> = (0..n).collect();
+
+    fn find(parent: &mut [usize], mut x: usize) -> usize {
+        while parent[x] != x {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        x
+    }
+    fn union(parent: &mut [usize], a: usize, b: usize) {
+        let ra = find(parent, a);
+        let rb = find(parent, b);
+        if ra != rb { parent[ra] = rb; }
+    }
+
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let (lo_i, hi_i) = spans[i];
+            let (lo_j, hi_j) = spans[j];
+            if lo_i < hi_j + 0.5 && lo_j < hi_i + 0.5 {
+                union(&mut parent, i, j);
+            }
+        }
+    }
+
+    // Group by root.
+    let mut groups: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+    for i in 0..n {
+        let root = find(&mut parent, i);
+        groups.entry(root).or_default().push(cluster_indices[i]);
+    }
+
+    groups.into_values().collect()
 }
 
 /// Update the corridor-side endpoint of a horizontal segment.
