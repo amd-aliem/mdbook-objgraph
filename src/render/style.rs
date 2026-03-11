@@ -213,6 +213,12 @@ pub fn css() -> &'static str {
   filter: url(#shadow);
 }
 
+.obgraph-pill[data-selected="true"] .obgraph-pill-bg {
+  stroke: var(--obg-select-ring);
+  stroke-width: 2.5px;
+  filter: url(#shadow) drop-shadow(0 0 3px var(--obg-select-ring));
+}
+
 .obgraph-pill-label {
   font-family: Menlo, Consolas, monospace;
   font-size: 10px;

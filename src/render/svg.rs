@@ -316,9 +316,10 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
             let rx = PILL_HEIGHT / 2.0;
             writeln!(
                 out,
-                r#"      <g class="obgraph-node obgraph-pill" data-node="{id}" data-trust="{trust}">"#,
+                r#"      <g class="obgraph-node obgraph-pill" data-node="{id}" data-trust="{trust}" data-selected="{sel}">"#,
                 id = nl.id.0,
-                trust = node_trust_attr
+                trust = node_trust_attr,
+                sel = selected_attr
             ).unwrap();
             writeln!(
                 out,

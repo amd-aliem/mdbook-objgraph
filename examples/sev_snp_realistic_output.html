@@ -218,6 +218,12 @@
   filter: url(#shadow);
 }
 
+.obgraph-pill[data-selected="true"] .obgraph-pill-bg {
+  stroke: var(--obg-select-ring);
+  stroke-width: 2.5px;
+  filter: url(#shadow) drop-shadow(0 0 3px var(--obg-select-ring));
+}
+
 .obgraph-pill-label {
   font-family: Menlo, Consolas, monospace;
   font-size: 10px;
@@ -1089,7 +1095,7 @@
         </g>
         <rect class="obgraph-node-border" x="65" y="2013" width="165" height="110" rx="7" fill="none"/>
       </g>
-      <g class="obgraph-node obgraph-pill" data-node="18" data-trust="trusted">
+      <g class="obgraph-node obgraph-pill" data-node="18" data-trust="trusted" data-selected="false">
         <rect class="obgraph-pill-bg" x="502" y="500" width="57" height="20" rx="10"/>
         <text class="obgraph-pill-text" x="530.5" y="510" dominant-baseline="central" text-anchor="middle">filter</text>
       </g>
