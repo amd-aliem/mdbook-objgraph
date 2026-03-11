@@ -707,13 +707,21 @@ fn print_check_text(
     }
 
     println!(
-        "  Metrics: {:.0}x{:.0}px, balance={:.3}, edge_crossings={}, edge_len={:.0}px",
+        "  Metrics: {:.0}x{:.0}px, balance={:.3}, edge_crossings={}, edge_len={:.0}px, constraint_height_cv={:.3}",
         report.total_width,
         report.total_height,
         report.visual_balance,
         report.edge_crossings,
         report.total_edge_length,
+        report.constraint_height_cv,
     );
+    if !report.constraint_heights.is_empty() {
+        let top_n = 5.min(report.constraint_heights.len());
+        println!("  Tallest constraints:");
+        for &(eid, height, ref src, ref dst) in &report.constraint_heights[..top_n] {
+            println!("    edge {}: {:.0}px  {} → {}", eid.0, height, src, dst);
+        }
+    }
     println!();
 }
 

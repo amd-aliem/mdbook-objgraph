@@ -131,6 +131,14 @@ pub struct QualityReport {
     /// (reversed) property ordering creates nested brackets in the corridor.
     /// Each entry: (node_a, node_b, nesting_violations, total_pairs).
     pub bracket_nesting_violations: Vec<(NodeId, NodeId, usize, usize)>,
+
+    // ── Constraint height consistency ─────────────────────────────────
+    /// Coefficient of variation of constraint edge vertical spans.
+    /// Lower is better — means constraint heights are more uniform.
+    pub constraint_height_cv: f64,
+    /// Per-constraint vertical spans, sorted descending. Each entry:
+    /// (edge_id, height_px, src_node_display, dst_node_display).
+    pub constraint_heights: Vec<(EdgeId, f64, String, String)>,
 }
 
 impl QualityReport {
@@ -346,6 +354,23 @@ impl QualityReport {
                 lines.push(format!(
                     "      {} <-> {}: {}/{} pairs non-nested",
                     a.0, b.0, violations, total
+                ));
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // QUALITY — constraint height consistency
+        // ═══════════════════════════════════════════════════════════════
+        lines.push(String::new());
+        lines.push("  ═══ QUALITY: Constraint height consistency ═══".to_string());
+        lines.push(format!("    Constraint height CV:    {:.3} (ideal: 0)", self.constraint_height_cv));
+        if !self.constraint_heights.is_empty() {
+            let top_n = 5.min(self.constraint_heights.len());
+            lines.push(format!("    Top {} tallest constraints:", top_n));
+            for &(eid, height, ref src, ref dst) in &self.constraint_heights[..top_n] {
+                lines.push(format!(
+                    "      edge {}: {:.0}px  {} → {}",
+                    eid.0, height, src, dst
                 ));
             }
         }
@@ -581,6 +606,10 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
     let bracket_nesting_violations =
         find_bracket_nesting_violations(graph, &layout.property_order, &layout.nodes);
 
+    // ── Constraint height consistency ────────────────────────────────
+    let (constraint_height_cv, constraint_heights) =
+        compute_constraint_heights(graph, &parsed);
+
     QualityReport {
         node_overlaps,
         domain_overlaps,
@@ -646,6 +675,8 @@ pub fn analyze(graph: &Graph, layout: &LayoutResult) -> QualityReport {
         bracket_group_side_inconsistency,
         node_pair_side_inconsistency,
         bracket_nesting_violations,
+        constraint_height_cv,
+        constraint_heights,
     }
 }
 
@@ -2470,6 +2501,46 @@ fn compute_routing_direction_balance(edges: &[(EdgeId, Vec<LineSeg>)]) -> f64 {
         }
     }
     balance_ratio(rightward, leftward)
+}
+
+// ---------------------------------------------------------------------------
+// Constraint height consistency
+// ---------------------------------------------------------------------------
+
+/// Compute constraint height CV and per-edge heights sorted descending.
+fn compute_constraint_heights(
+    graph: &Graph,
+    edges: &[(EdgeId, Vec<LineSeg>)],
+) -> (f64, Vec<(EdgeId, f64, String, String)>) {
+    let mut heights: Vec<(EdgeId, f64, String, String)> = Vec::new();
+
+    for &(eid, ref segs) in edges {
+        let edge = &graph.edges[eid.index()];
+        if !edge.is_constraint() || segs.is_empty() {
+            continue;
+        }
+        // Vertical span: max_y - min_y across all segment endpoints.
+        let mut min_y = f64::INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        for seg in segs {
+            min_y = min_y.min(seg.y1).min(seg.y2);
+            max_y = max_y.max(seg.y1).max(seg.y2);
+        }
+        let height = max_y - min_y;
+
+        let (src_nid, dst_nid) = graph.edge_nodes(edge);
+        let src_name = graph.nodes[src_nid.index()].label().to_string();
+        let dst_name = graph.nodes[dst_nid.index()].label().to_string();
+
+        heights.push((eid, height, src_name, dst_name));
+    }
+
+    let h_values: Vec<f64> = heights.iter().map(|h| h.1).collect();
+    let cv = coefficient_of_variation(&h_values);
+
+    heights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    (cv, heights)
 }
 
 // ---------------------------------------------------------------------------
