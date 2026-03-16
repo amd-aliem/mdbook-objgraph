@@ -130,11 +130,11 @@ fn build_simplex_graph(graph: &Graph) -> SimplexGraph {
 /// Vertices with no predecessors get layer 0.
 /// Each subsequent vertex is placed at the maximum of
 /// (predecessor_layer + min_span) across all incoming edges.
-fn longest_path_init(sg: &SimplexGraph) -> HashMap<Vertex, u32> {
+fn longest_path_init(sg: &SimplexGraph) -> HashMap<Vertex, i64> {
     // Topological sort via Kahn's algorithm.
     let topo = topological_sort(sg);
 
-    let mut layer: HashMap<Vertex, u32> = HashMap::new();
+    let mut layer: HashMap<Vertex, i64> = HashMap::new();
 
     for &v in &topo {
         let in_ei = sg.in_edges.get(&v).map(|v| v.as_slice()).unwrap_or(&[]);
@@ -146,7 +146,7 @@ fn longest_path_init(sg: &SimplexGraph) -> HashMap<Vertex, u32> {
                 .iter()
                 .map(|&ei| {
                     let e = &sg.edges[ei];
-                    layer[&e.source] + e.min_span
+                    layer[&e.source] + e.min_span as i64
                 })
                 .max()
                 .unwrap();
@@ -210,8 +210,8 @@ struct SpanningTree {
 
 /// The slack of an edge: layer(target) - layer(source) - min_span.
 /// For a feasible assignment, slack >= 0.  Tight edges have slack == 0.
-fn slack(e: &SimplexEdge, layer: &HashMap<Vertex, u32>) -> i64 {
-    layer[&e.target] as i64 - layer[&e.source] as i64 - e.min_span as i64
+fn slack(e: &SimplexEdge, layer: &HashMap<Vertex, i64>) -> i64 {
+    layer[&e.target] - layer[&e.source] - e.min_span as i64
 }
 
 /// Build an initial feasible spanning tree from the current layer assignment.
@@ -223,7 +223,7 @@ fn slack(e: &SimplexEdge, layer: &HashMap<Vertex, u32>) -> i64 {
 ///    and add those edges.
 fn init_feasible_tree(
     sg: &SimplexGraph,
-    layer: &mut HashMap<Vertex, u32>,
+    layer: &mut HashMap<Vertex, i64>,
 ) -> SpanningTree {
     if sg.vertices.is_empty() {
         return SpanningTree {
@@ -298,8 +298,7 @@ fn init_feasible_tree(
             for &v in &sg.vertices {
                 if uf.find(v) == source_comp {
                     let old = layer[&v];
-                    let new_layer = (old as i64 + delta) as u32;
-                    layer.insert(v, new_layer);
+                    layer.insert(v, old + delta);
                 }
             }
         } else {
@@ -309,8 +308,7 @@ fn init_feasible_tree(
             for &v in &sg.vertices {
                 if uf.find(v) == target_comp {
                     let old = layer[&v];
-                    let new_layer = (old as i64 - delta) as u32;
-                    layer.insert(v, new_layer);
+                    layer.insert(v, old - delta);
                 }
             }
         }
@@ -370,7 +368,7 @@ fn init_feasible_tree(
 fn compute_cut_values(
     sg: &SimplexGraph,
     tree: &SpanningTree,
-    _layer: &HashMap<Vertex, u32>,
+    _layer: &HashMap<Vertex, i64>,
 ) -> HashMap<usize, i64> {
     let mut cut_values: HashMap<usize, i64> = HashMap::new();
 
@@ -447,7 +445,7 @@ fn find_entering_edge(
     sg: &SimplexGraph,
     tree: &SpanningTree,
     leave_idx: usize,
-    layer: &HashMap<Vertex, u32>,
+    layer: &HashMap<Vertex, i64>,
 ) -> Option<usize> {
     let le = &sg.edges[leave_idx];
 
@@ -508,7 +506,7 @@ fn find_entering_edge(
 fn pivot(
     sg: &SimplexGraph,
     tree: &mut SpanningTree,
-    layer: &mut HashMap<Vertex, u32>,
+    layer: &mut HashMap<Vertex, i64>,
     leave_idx: usize,
     enter_idx: usize,
 ) {
@@ -567,7 +565,7 @@ fn pivot(
     if s != 0 {
         for &v in &target_side {
             let old = layer[&v];
-            layer.insert(v, (old as i64 - s) as u32);
+            layer.insert(v, old - s);
         }
     }
 
@@ -600,7 +598,7 @@ fn pivot(
 fn simplex_iterate(
     sg: &SimplexGraph,
     tree: &mut SpanningTree,
-    layer: &mut HashMap<Vertex, u32>,
+    layer: &mut HashMap<Vertex, i64>,
 ) {
     let max_iterations = sg.vertices.len() * sg.edges.len().max(1) * 2 + 100;
 
@@ -624,18 +622,18 @@ fn simplex_iterate(
 // Normalize layers
 // ---------------------------------------------------------------------------
 
-/// Shift all layers so the minimum layer is 0 and compute num_layers.
-fn normalize_layers(layer: &mut HashMap<Vertex, u32>) -> u32 {
+/// Shift all layers so the minimum layer is 0 and convert to u32.
+fn normalize_layers(layer: &HashMap<Vertex, i64>) -> (HashMap<Vertex, u32>, u32) {
     if layer.is_empty() {
-        return 0;
+        return (HashMap::new(), 0);
     }
     let min_layer = *layer.values().min().unwrap();
-    if min_layer > 0 {
-        for v in layer.values_mut() {
-            *v -= min_layer;
-        }
-    }
-    layer.values().copied().max().unwrap_or(0) + 1
+    let result: HashMap<Vertex, u32> = layer
+        .iter()
+        .map(|(&v, &l)| (v, (l - min_layer) as u32))
+        .collect();
+    let num_layers = result.values().copied().max().unwrap_or(0) + 1;
+    (result, num_layers)
 }
 
 // ---------------------------------------------------------------------------
@@ -675,12 +673,12 @@ pub fn network_simplex(graph: &Graph) -> Result<LayerAssignment, ObgraphError> {
     }
 
     // Normalize so minimum layer is 0.
-    let num_layers = normalize_layers(&mut layer);
+    let (normalized, num_layers) = normalize_layers(&layer);
 
     // Extract node_layers.
     let mut node_layers: HashMap<NodeId, u32> = HashMap::new();
 
-    for (&v, &l) in &layer {
+    for (&v, &l) in &normalized {
         match v {
             Vertex::Node(nid) => {
                 node_layers.insert(nid, l);
