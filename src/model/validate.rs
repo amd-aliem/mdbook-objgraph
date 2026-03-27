@@ -374,6 +374,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "sig".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -383,6 +384,7 @@ mod tests {
             id: PropId(1),
             node: NodeId(1),
             name: "sig".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -447,8 +449,9 @@ mod tests {
                 id: PropId(i),
                 node: NodeId(0),
                 name: "sig".to_string(),
+                value: None,
                 critical: true,
-            constrained: false,
+                constrained: false,
             });
             g.nodes[0].properties.push(PropId(i));
         }
@@ -511,6 +514,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "p".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -542,6 +546,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "source".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -549,6 +554,7 @@ mod tests {
             id: PropId(1),
             node: NodeId(0),
             name: "constrained_prop".to_string(),
+            value: None,
             critical: false,
             constrained: true, // @constrained
         });
@@ -576,6 +582,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "source".to_string(),
+            value: None,
             critical: false,
             constrained: true, // source is constrained — ok, only dest matters
         });
@@ -583,6 +590,7 @@ mod tests {
             id: PropId(1),
             node: NodeId(0),
             name: "dest".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -699,6 +707,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "a".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });
@@ -706,6 +715,7 @@ mod tests {
             id: PropId(1),
             node: NodeId(0),
             name: "b".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         });

@@ -342,7 +342,14 @@ fn single_node_content_width(graph: &Graph, node_id: NodeId) -> f64 {
     let max_prop_width = node
         .properties
         .iter()
-        .map(|&pid| graph.properties[pid.index()].name.len() as f64 * CHAR_WIDTH)
+        .map(|&pid| {
+            let prop = &graph.properties[pid.index()];
+            let base = prop.name.len();
+            match &prop.value {
+                Some(v) => (base + 3 + v.len()) as f64 * CHAR_WIDTH, // " = " + value
+                None => base as f64 * CHAR_WIDTH,
+            }
+        })
         .fold(0.0_f64, f64::max);
     f64::max(label_width, max_prop_width) + CONTENT_PAD * 2.0
 }

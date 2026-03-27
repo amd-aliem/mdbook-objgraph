@@ -107,6 +107,7 @@ impl Builder {
         node_id: NodeId,
         node_ident: &str,
         name: &str,
+        value: Option<String>,
         critical: bool,
         constrained: bool,
     ) -> Result<PropId, ObgraphError> {
@@ -121,6 +122,7 @@ impl Builder {
             id,
             node: node_id,
             name: name.to_string(),
+            value,
             critical,
             constrained,
         };
@@ -142,6 +144,7 @@ impl Builder {
             id,
             node: node_id,
             name: name.to_string(),
+            value: None,
             critical: false,
             constrained: false,
         };
@@ -234,7 +237,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
             member_ids.push(node_id);
 
             for ast_prop in &ast_node.properties {
-                b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.critical, ast_prop.constrained)?;
+                b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained)?;
             }
         }
 
@@ -259,7 +262,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
         )?;
 
         for ast_prop in &ast_node.properties {
-            b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.critical, ast_prop.constrained)?;
+            b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained)?;
         }
     }
 
@@ -420,6 +423,7 @@ mod tests {
                 .into_iter()
                 .map(|(name, critical, constrained)| AstProperty {
                     name: name.to_string(),
+                    value: None,
                     critical,
                     constrained,
                 })

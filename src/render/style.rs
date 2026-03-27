@@ -178,6 +178,13 @@ pub fn css() -> &'static str {
   font-family: Menlo, Consolas, monospace;
 }
 
+/* Property value text (display-only) — muted, normal weight */
+.obgraph-prop-value {
+  fill: var(--obg-text-muted);
+  font-weight: 400;
+  opacity: 0.7;
+}
+
 /* Trusted property name */
 .obgraph-prop[data-trust="trusted"] .obgraph-prop-name {
   fill: var(--obg-text);

@@ -170,6 +170,8 @@ pub struct Property {
     pub id: PropId,
     pub node: NodeId,
     pub name: String,
+    /// Optional display-only value (e.g. `version = 5`).
+    pub value: Option<String>,
     /// `@critical` — property gates node verification.
     pub critical: bool,
     /// `@constrained` — property is pre-satisfied (annotation-constrained).

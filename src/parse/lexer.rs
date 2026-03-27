@@ -39,6 +39,10 @@ pub enum Token {
     LBrace,
     /// `}`
     RBrace,
+    /// `=` (property value assignment)
+    Equals,
+    /// Free-form value text after `=` (trimmed, stops at `@`/`#`/newline)
+    ValueText(String),
     /// End of line (significant as statement terminator).
     Newline,
     /// End of input.
@@ -297,6 +301,28 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     tokens.push(Spanned { token: Token::RBrace, line: tok_line, col: tok_col });
                     last_was_newline = false;
+                }
+
+                '=' => {
+                    self.advance();
+                    tokens.push(Spanned { token: Token::Equals, line: tok_line, col: tok_col });
+                    last_was_newline = false;
+
+                    // Capture free-form value text until @, #, or newline.
+                    self.skip_horizontal_whitespace();
+                    let val_line = self.line;
+                    let val_col = self.col;
+                    let mut val = String::new();
+                    while let Some(c) = self.peek() {
+                        if c == '@' || c == '#' || c == '\n' {
+                            break;
+                        }
+                        val.push(self.advance().unwrap());
+                    }
+                    let trimmed = val.trim_end().to_string();
+                    if !trimmed.is_empty() {
+                        tokens.push(Spanned { token: Token::ValueText(trimmed), line: val_line, col: val_col });
+                    }
                 }
 
                 other => {
@@ -632,5 +658,79 @@ mod tests {
                 Token::Eof,
             ]
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Property value tokens
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_equals_token() {
+        let toks = tokenize("= 5");
+        assert_eq!(toks[0], Token::Equals);
+        assert_eq!(toks[1], Token::ValueText("5".into()));
+    }
+
+    #[test]
+    fn test_value_text_with_hex() {
+        let toks = tokenize("= 0x30000");
+        assert_eq!(toks[1], Token::ValueText("0x30000".into()));
+    }
+
+    #[test]
+    fn test_value_text_with_colons_and_spaces() {
+        let toks = tokenize("= bl:10 tee:0 snp:27 ucode:25");
+        assert_eq!(toks[1], Token::ValueText("bl:10 tee:0 snp:27 ucode:25".into()));
+    }
+
+    #[test]
+    fn test_value_stops_at_annotation() {
+        let toks = tokenize("= some_value @critical");
+        assert_eq!(toks[1], Token::ValueText("some_value".into()));
+        assert_eq!(toks[2], Token::AtCritical);
+    }
+
+    #[test]
+    fn test_value_stops_at_comment() {
+        let toks = tokenize("= some_value # comment");
+        assert_eq!(toks[1], Token::ValueText("some_value".into()));
+    }
+
+    #[test]
+    fn test_value_stops_at_newline() {
+        let toks = tokenize("= some_value\nnext_thing");
+        assert_eq!(toks[1], Token::ValueText("some_value".into()));
+        assert_eq!(toks[2], Token::Newline);
+    }
+
+    #[test]
+    fn test_equals_no_value() {
+        // `= @critical` — no value text, just annotation
+        let toks = tokenize("= @critical");
+        assert_eq!(toks[0], Token::Equals);
+        assert_eq!(toks[1], Token::AtCritical);
+    }
+
+    #[test]
+    fn test_property_with_value_and_annotations() {
+        let toks = tokenize("version = 5 @critical @constrained");
+        assert_eq!(
+            toks,
+            vec![
+                Token::Ident("version".into()),
+                Token::Equals,
+                Token::ValueText("5".into()),
+                Token::AtCritical,
+                Token::AtConstrained,
+                Token::Newline,
+                Token::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_value_with_dots_and_hex_hash() {
+        let toks = tokenize("= f6fefdd6c54410ab3a335b9318d9567d...");
+        assert_eq!(toks[1], Token::ValueText("f6fefdd6c54410ab3a335b9318d9567d...".into()));
     }
 }

@@ -455,14 +455,26 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
 
                 let text_x = nl.x + CONTENT_PAD;
                 let text_y = port_y;
-                writeln!(
-                    out,
-                    r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}</text>"#,
-                    x = text_x,
-                    y = text_y,
-                    name = escape_xml(&prop.name)
-                )
-                .unwrap();
+                if let Some(val) = &prop.value {
+                    writeln!(
+                        out,
+                        r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}<tspan class="obgraph-prop-value"> = {val}</tspan></text>"#,
+                        x = text_x,
+                        y = text_y,
+                        name = escape_xml(&prop.name),
+                        val = escape_xml(val)
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(
+                        out,
+                        r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}</text>"#,
+                        x = text_x,
+                        y = text_y,
+                        name = escape_xml(&prop.name)
+                    )
+                    .unwrap();
+                }
 
                 if prop.critical && !prop_constrained {
                     let dot_x = nl.x + nl.width - CONTENT_PAD - DOT_RADIUS;
@@ -752,6 +764,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(1),
             name: "secret".to_string(),
+            value: None,
             critical: true,
             constrained: false,
         }];
@@ -839,6 +852,7 @@ mod tests {
                 id: PropId(0),
                 node: NodeId(0),
                 name: "src_prop".to_string(),
+                value: None,
                 critical: false,
                 constrained: true,
             },
@@ -846,8 +860,9 @@ mod tests {
                 id: PropId(1),
                 node: NodeId(1),
                 name: "dst_prop".to_string(),
+                value: None,
                 critical: true,
-            constrained: false,
+                constrained: false,
             },
         ];
         let edges = vec![Edge::Constraint {
@@ -986,6 +1001,7 @@ mod tests {
             id: PropId(0),
             node: NodeId(0),
             name: "always_prop".to_string(),
+            value: None,
             critical: false,
             constrained: true,
         }];
@@ -1296,6 +1312,7 @@ mod tests {
                 id: PropId(0),
                 node: NodeId(0),
                 name: "src_val".to_string(),
+                value: None,
                 critical: false,
                 constrained: true,
             },
@@ -1303,6 +1320,7 @@ mod tests {
                 id: PropId(1),
                 node: NodeId(1),
                 name: "dst_val".to_string(),
+                value: None,
                 critical: true,
                 constrained: false,
             },

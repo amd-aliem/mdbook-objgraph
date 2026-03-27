@@ -289,6 +289,7 @@ mod tests {
             id: PropId(id),
             node: NodeId(node_id),
             name: name.to_string(),
+            value: None,
             critical,
             constrained,
         }
@@ -496,6 +497,7 @@ mod tests {
                     id: PropId(i as u32),
                     node: NodeId(0),
                     name: format!("_placeholder_{}", i),
+                    value: None,
                     critical: true,
                     constrained: false,
                 })

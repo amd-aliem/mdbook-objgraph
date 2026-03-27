@@ -1160,6 +1160,7 @@ mod tests {
             id: PropId(id),
             node: NodeId(node),
             name: name.to_string(),
+            value: None,
             critical: true, constrained: false,
         }
     }

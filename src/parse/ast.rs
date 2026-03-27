@@ -34,6 +34,8 @@ pub struct AstNode {
 #[derive(Debug, Clone)]
 pub struct AstProperty {
     pub name: String,
+    /// Optional display-only value (e.g. `version = 5`).
+    pub value: Option<String>,
     /// `@critical` — property gates node verification.
     pub critical: bool,
     /// `@constrained` — property is pre-satisfied (annotation-constrained).

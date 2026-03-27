@@ -214,6 +214,21 @@ impl Parser {
     // -----------------------------------------------------------------------
     fn parse_prop_decl(&mut self) -> Result<AstProperty, ObgraphError> {
         let name = self.parse_prop_name()?;
+
+        // Optional value: `= free_text`
+        let value = if *self.peek() == Token::Equals {
+            self.advance(); // consume '='
+            match self.peek().clone() {
+                Token::ValueText(v) => {
+                    self.advance();
+                    Some(v)
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         let mut critical = false;
         let mut constrained = false;
         loop {
@@ -229,7 +244,7 @@ impl Parser {
                 _ => break,
             }
         }
-        Ok(AstProperty { name, critical, constrained })
+        Ok(AstProperty { name, value, critical, constrained })
     }
 
     // -----------------------------------------------------------------------
@@ -818,6 +833,68 @@ cert::issuer.org <= ca::subject.org
 cert::signature <= ca::public_key : verified_by
 cert::subject.common_name <= revocation::crl : not_in
 "#;
+
+    // -----------------------------------------------------------------------
+    // Property values
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_property_without_value() {
+        let g = p("node ca {\n  public_key\n}\n");
+        assert_eq!(g.nodes[0].properties[0].value, None);
+    }
+
+    #[test]
+    fn test_property_with_value() {
+        let g = p("node ca {\n  version = 5\n}\n");
+        let prop = &g.nodes[0].properties[0];
+        assert_eq!(prop.name, "version");
+        assert_eq!(prop.value, Some("5".into()));
+    }
+
+    #[test]
+    fn test_property_with_hex_value() {
+        let g = p("node ca {\n  policy = 0x30000\n}\n");
+        assert_eq!(g.nodes[0].properties[0].value, Some("0x30000".into()));
+    }
+
+    #[test]
+    fn test_property_with_complex_value() {
+        let g = p("node ca {\n  committed_tcb = bl:10 tee:0 snp:27 ucode:25\n}\n");
+        assert_eq!(
+            g.nodes[0].properties[0].value,
+            Some("bl:10 tee:0 snp:27 ucode:25".into())
+        );
+    }
+
+    #[test]
+    fn test_property_with_value_and_critical() {
+        let g = p("node ca {\n  version = 5 @critical\n}\n");
+        let prop = &g.nodes[0].properties[0];
+        assert_eq!(prop.value, Some("5".into()));
+        assert!(prop.critical);
+    }
+
+    #[test]
+    fn test_property_with_value_and_constrained() {
+        let g = p("node ca {\n  issuer = ARK-Genoa @constrained\n}\n");
+        let prop = &g.nodes[0].properties[0];
+        assert_eq!(prop.value, Some("ARK-Genoa".into()));
+        assert!(prop.constrained);
+    }
+
+    #[test]
+    fn test_mixed_valued_and_plain_properties() {
+        let g = p("node ca {\n  version = 5\n  public_key @critical\n}\n");
+        let props = &g.nodes[0].properties;
+        assert_eq!(props[0].value, Some("5".into()));
+        assert_eq!(props[1].value, None);
+        assert!(props[1].critical);
+    }
+
+    // -----------------------------------------------------------------------
+    // Complete example from DESIGN.md §3.2
+    // -----------------------------------------------------------------------
 
     #[test]
     fn test_full_example_parses() {

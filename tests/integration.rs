@@ -271,6 +271,22 @@ fn sev_snp_tpm_full_pipeline() {
     assert!(svg.contains("vTPM Event Log"), "Output should contain vTCGLog label");
 }
 
+const PASS_EXAMPLE: &str = include_str!("../examples/pass.obgraph");
+
+#[test]
+fn pass_example_full_pipeline() {
+    let result = mdbook_obgraph::process(PASS_EXAMPLE);
+    assert!(result.is_ok(), "pass.obgraph pipeline should succeed: {:?}", result.err());
+    let svg = result.unwrap();
+    assert!(svg.contains("obgraph-container"), "Output should contain SVG container");
+    assert!(svg.contains("Attestation Report"), "Output should contain Report label");
+    assert!(svg.contains("ARK-Genoa"), "Output should contain ARK display name");
+    // Verify property values appear in the SVG
+    assert!(svg.contains("obgraph-prop-value"), "Output should contain value tspan class");
+    assert!(svg.contains("0x30000"), "Output should contain hex policy value");
+    assert!(svg.contains("bl:10 tee:0 snp:27 ucode:25"), "Output should contain TCB value");
+}
+
 const SEV_SNP_REALISTIC: &str = include_str!("sev_snp_realistic.objgraph");
 
 #[test]
