@@ -188,6 +188,17 @@ impl NodeLayout {
         self.x + self.width / 2.0
     }
 
+    /// Distributed anchor port x for parents with multiple children.
+    /// slot is 0-based, total is the number of children.
+    pub fn anchor_port_distributed_x(&self, slot: usize, total: usize) -> f64 {
+        if total <= 1 {
+            return self.anchor_port_x();
+        }
+        let pad = self.width * 0.15;
+        let usable = self.width - 2.0 * pad;
+        self.x + pad + usable * (slot as f64 + 0.5) / total as f64
+    }
+
     /// Anchor port y-coordinate at top edge (for incoming anchor from parent).
     pub fn anchor_port_top_y(&self) -> f64 {
         self.y

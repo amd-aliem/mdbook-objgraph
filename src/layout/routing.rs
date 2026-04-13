@@ -1138,6 +1138,69 @@ impl PillPortDistributor {
     }
 }
 
+/// Distributes anchor ports for parents with multiple children.
+///
+/// When a parent node has multiple children, each anchor edge from the parent
+/// gets a distinct source port on the parent's bottom edge. Children are sorted
+/// by x-coordinate so left child gets left port, right child gets right port.
+struct AnchorPortDistributor {
+    /// Slot assignment for each (EdgeId, parent NodeId) pair.
+    slots: std::collections::HashMap<(EdgeId, NodeId), usize>,
+    /// Total children per parent NodeId.
+    counts: std::collections::HashMap<NodeId, usize>,
+}
+
+impl AnchorPortDistributor {
+    /// Build anchor port distributor from graph.node_children.
+    fn new(graph: &Graph, node_layouts: &[NodeLayout]) -> Self {
+        let mut slots = std::collections::HashMap::new();
+        let mut counts = std::collections::HashMap::new();
+
+        for (&parent_id, child_edges) in &graph.node_children {
+            let total = child_edges.len();
+            counts.insert(parent_id, total);
+
+            if total <= 1 {
+                // Single child: no distribution needed, use default slot 0.
+                if let Some(&eid) = child_edges.first() {
+                    slots.insert((eid, parent_id), 0);
+                }
+                continue;
+            }
+
+            // Multiple children: sort by child x-coordinate.
+            let mut edge_child_x: Vec<(EdgeId, f64)> = child_edges
+                .iter()
+                .filter_map(|&eid| {
+                    if let Edge::Anchor { child, .. } = &graph.edges[eid.index()] {
+                        let child_x = find_node_layout(node_layouts, *child)
+                            .map(|nl| nl.x + nl.width / 2.0)
+                            .unwrap_or(0.0);
+                        Some((eid, child_x))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            edge_child_x.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            for (slot, (eid, _)) in edge_child_x.iter().enumerate() {
+                slots.insert((*eid, parent_id), slot);
+            }
+        }
+
+        AnchorPortDistributor { slots, counts }
+    }
+
+    /// Get the distributed x for an anchor source port on a parent node.
+    fn port_x(&self, nl: &NodeLayout, edge_id: EdgeId, parent_id: NodeId) -> f64 {
+        let total = self.counts.get(&parent_id).copied().unwrap_or(1);
+        let slot = self.slots.get(&(edge_id, parent_id)).copied().unwrap_or(0);
+        nl.anchor_port_distributed_x(slot, total)
+    }
+}
+
 /// Get the physical Y coordinate of the opposite endpoint for port slot ordering.
 fn opposite_y(
     graph: &Graph,
@@ -1186,6 +1249,7 @@ fn port_position(
     port_sides: &PortSideAssignment,
     distributor: &PortDistributor,
     pill_distributor: &PillPortDistributor,
+    anchor_distributor: &AnchorPortDistributor,
     prop_order: &super::crossing::PropertyOrder,
 ) -> Option<(f64, f64, Option<PortSide>)> {
     let edge = &graph.edges[edge_id.index()];
@@ -1193,12 +1257,13 @@ fn port_position(
 
     match edge {
         Edge::Anchor { parent, child, .. } => {
-            // Links use center top/bottom ports.
+            // Links use distributed ports for multi-child parents, center otherwise.
             match role {
                 EndpointRole::Upstream => {
-                    // Source is parent node, bottom center.
+                    // Source is parent node, bottom edge with distributed x.
                     let nl = find_node_layout(node_layouts, *parent)?;
-                    Some((nl.anchor_port_x(), nl.anchor_port_bottom_y(), None))
+                    let x = anchor_distributor.port_x(nl, edge_id, *parent);
+                    Some((x, nl.anchor_port_bottom_y(), None))
                 }
                 EndpointRole::Downstream => {
                     // Target is child node, top center.
@@ -1629,6 +1694,9 @@ pub fn route_all_edges(
         graph, node_layouts, &edge_indices,
     );
 
+    // Build anchor port distributor to spread source ports for multi-child parents.
+    let anchor_distributor = AnchorPortDistributor::new(graph, node_layouts);
+
     let mut routes = Vec::new();
 
     for idx in edge_indices {
@@ -1642,6 +1710,7 @@ pub fn route_all_edges(
             port_sides,
             &distributor,
             &pill_distributor,
+            &anchor_distributor,
             prop_order,
         );
         let tgt = port_position(
@@ -1652,6 +1721,7 @@ pub fn route_all_edges(
             port_sides,
             &distributor,
             &pill_distributor,
+            &anchor_distributor,
             prop_order,
         );
 

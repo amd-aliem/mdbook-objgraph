@@ -675,6 +675,8 @@ fn domain_max_row_width(
 
     let mut y_groups: HashMap<i64, Vec<crate::model::types::NodeId>> = HashMap::new();
     for &nid in members {
+        // Discretize y-coordinates to integer keys by multiplying by 100.0
+        // to group nodes on the same layer (with y values within ~0.01 of each other).
         let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
         y_groups.entry(y_key).or_default().push(nid);
     }
@@ -733,26 +735,15 @@ fn reposition_to_columns(
             // Nodes with identical y values are on the same layer.
             let mut y_groups: HashMap<i64, Vec<crate::model::types::NodeId>> = HashMap::new();
             for &nid in &domain.members {
+                // Discretize y-coordinates to integer keys by multiplying by 100.0
+                // to group nodes on the same layer (with y values within ~0.01 of each other).
                 let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
                 y_groups.entry(y_key).or_default().push(nid);
             }
 
             // Compute domain natural width: the widest row of nodes placed
-            // side-by-side, plus padding. For rows with a single node this is
-            // the node width; for rows with N nodes it is
-            //   N * node_width + (N-1) * NODE_H_SPACING.
-            let max_row_width = y_groups.values().map(|group| {
-                if group.len() <= 1 {
-                    group.iter()
-                        .map(|&nid| node_layouts[nid.index()].width)
-                        .fold(0.0_f64, f64::max)
-                } else {
-                    let total_node_width: f64 = group.iter()
-                        .map(|&nid| node_layouts[nid.index()].width)
-                        .sum();
-                    total_node_width + (group.len() as f64 - 1.0) * super::NODE_H_SPACING
-                }
-            }).fold(0.0_f64, f64::max);
+            // side-by-side, plus padding. Reuse domain_max_row_width helper.
+            let max_row_width = domain_max_row_width(&domain.members, node_layouts);
 
             let domain_natural_width = max_row_width + 2.0 * lr_pad;
 
