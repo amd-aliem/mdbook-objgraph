@@ -10,9 +10,12 @@
 //!    minimization.
 //!
 //! 2. **Corridor construction** (`build_corridors`): Creates vertical channel
-//!    regions alongside domains and in inter-column gaps. Three types:
+//!    regions alongside domains and in inter-column gaps. Four types:
 //!    - **Intra-domain corridors**: Left/right edges of each domain. Tagged
 //!      with `domain_ids`. Used by intra-domain bracket edges.
+//!    - **Node-edge corridors**: Alongside individual nodes within domains,
+//!      in inter-node gaps. Tagged with `domain_ids`. Used by intra-domain
+//!      edges to route alongside nodes rather than at domain boundaries.
 //!    - **Inter-column gap corridors**: Between adjacent domain columns.
 //!      Empty `domain_ids`. Used by cross-column edges.
 //!    - **Outer corridors**: Left/right edges of the entire layout. Empty
@@ -290,13 +293,15 @@ impl Corridor {
 
 /// Build corridors from domain bounding boxes.
 ///
-/// Creates three kinds of corridors:
+/// Creates four kinds of corridors:
 /// 1. Per-domain intra-domain corridors (left/right edges of each domain).
-/// 2. Inter-column gap corridors between columns of domains.
-/// 3. Outer corridors on the left and right edges of the entire layout.
+/// 2. Node-edge corridors alongside individual nodes within domains.
+/// 3. Inter-column gap corridors between columns of domains.
+/// 4. Outer corridors on the left and right edges of the entire layout.
 ///
 /// The outer and inter-column corridors have empty `domain_ids` and are used
-/// exclusively by cross-domain edges.
+/// exclusively by cross-domain edges. Node-edge corridors are tagged with
+/// the domain ID so intra-domain edges can route alongside individual nodes.
 fn build_corridors(
     domain_layouts: &[DomainLayout],
     node_layouts: &[NodeLayout],
@@ -312,12 +317,13 @@ fn build_corridors(
         // Compute corridor width from the actual distance between the domain
         // edge and the nearest member node. This handles domains that were
         // expanded by `expand_corridors_for_edges` to fit more bracket edges.
-        let members: Vec<&NodeLayout> = graph
-            .domains
+        let domain = match graph.domains.iter().find(|d| d.id == dl.id) {
+            Some(d) => d,
+            None => continue,
+        };
+        let members: Vec<&NodeLayout> = domain
+            .members
             .iter()
-            .find(|d| d.id == dl.id)
-            .into_iter()
-            .flat_map(|d| d.members.iter())
             .map(|nid| &node_layouts[nid.index()])
             .collect();
 
@@ -338,6 +344,87 @@ fn build_corridors(
         // Merge with existing corridor at same x-range, or create new.
         merge_or_create_corridor(&mut corridors, left_x_start, left_x_end, dl.id);
         merge_or_create_corridor(&mut corridors, right_x_start, right_x_end, dl.id);
+
+        // ── Node-edge corridors ─────────────────────────────────────
+        // For each domain member node, create corridors alongside the node
+        // (left and right) so that intra-domain edges can route through the
+        // inter-node gaps rather than only at domain boundaries.
+        //
+        // Group members by y-coordinate to find nodes on the same layer.
+        // For each layer, sort nodes by x and create corridors in the gaps
+        // between adjacent nodes and between edge nodes and domain boundaries.
+        {
+            use std::collections::HashMap;
+            let mut y_groups: HashMap<i64, Vec<NodeId>> = HashMap::new();
+            for &nid in &domain.members {
+                let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
+                y_groups.entry(y_key).or_default().push(nid);
+            }
+
+            for group in y_groups.values() {
+                // Sort nodes in this layer by x position.
+                let mut sorted_nodes: Vec<NodeId> = group.clone();
+                sorted_nodes.sort_by(|a, b| {
+                    node_layouts[a.index()].x
+                        .partial_cmp(&node_layouts[b.index()].x)
+                        .unwrap()
+                });
+
+                // Create corridors in inter-node gaps.
+                for w in sorted_nodes.windows(2) {
+                    let left_nl = &node_layouts[w[0].index()];
+                    let right_nl = &node_layouts[w[1].index()];
+                    let gap_left = left_nl.x + left_nl.width;
+                    let gap_right = right_nl.x;
+                    let gap = gap_right - gap_left;
+
+                    // Only create a corridor if the gap is wide enough.
+                    if gap >= CORRIDOR_PAD * 2.0 {
+                        merge_or_create_corridor(
+                            &mut corridors,
+                            gap_left,
+                            gap_right,
+                            dl.id,
+                        );
+                    }
+                }
+
+                // For each node, also create corridors between the node edge
+                // and the domain boundary, if that gap is different from the
+                // domain-level corridor (which handles domain_edge-to-first-node).
+                for &nid in &sorted_nodes {
+                    let nl = &node_layouts[nid.index()];
+
+                    // Left corridor: from (node.x - CORRIDOR_PAD) to node.x
+                    // Only if it doesn't overlap with the domain left corridor.
+                    let node_left_start = nl.x - CORRIDOR_PAD;
+                    let node_left_end = nl.x;
+                    if node_left_start > left_x_end + 0.5 {
+                        // There's space between the domain corridor and this node.
+                        merge_or_create_corridor(
+                            &mut corridors,
+                            node_left_start,
+                            node_left_end,
+                            dl.id,
+                        );
+                    }
+
+                    // Right corridor: from node.x + node.width to node.x + node.width + CORRIDOR_PAD
+                    // Only if it doesn't overlap with the domain right corridor.
+                    let node_right_start = nl.x + nl.width;
+                    let node_right_end = nl.x + nl.width + CORRIDOR_PAD;
+                    if node_right_end < right_x_start - 0.5 {
+                        // There's space between this node and the domain corridor.
+                        merge_or_create_corridor(
+                            &mut corridors,
+                            node_right_start,
+                            node_right_end,
+                            dl.id,
+                        );
+                    }
+                }
+            }
+        }
     }
 
     // Inter-column gap corridors between adjacent domains at different x-ranges.
@@ -2644,6 +2731,8 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
     }
 
     // Candidate B: V-H-V anchor route — middle horizontal segment (index 1).
+    // Only add horizontal candidate if the segment is wide enough for a label
+    // (~40px); short horizontal segments place labels on top of nodes.
     if n == 3
         && let (
             Segment::Vertical { .. },
@@ -2651,8 +2740,11 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
             Segment::Vertical { .. },
         ) = (&route.segments[0], &route.segments[1], &route.segments[2])
     {
-        let mid_x = (x_start + x_end) / 2.0;
-        candidates.push((mid_x, *y - 4.0, "middle"));
+        let h_len = (x_end - x_start).abs();
+        if h_len >= 40.0 {
+            let mid_x = (x_start + x_end) / 2.0;
+            candidates.push((mid_x, *y - 4.0, "middle"));
+        }
     }
 
     // Candidate C: first horizontal segment midpoint (bracket or 5-seg routes).
@@ -2676,51 +2768,71 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
         }
     }
 
-    // Candidate E/F/G/H: Vertical segment at 25% and 50%, on both sides.
+    // Candidate E/F/G/H: Vertical segment at 25%, 50%, and 75%, on both sides.
     //
     // For bracket routes (H-V-H) the vertical runs outside the node column.
     // Placing the label on the *outward* side (away from nodes) can push it
     // past the domain boundary, while placing it on the *inward* side (toward
     // the inter-node gap) keeps it in free space.  We generate candidates on
     // both sides so the collision-aware scorer can pick the best one.
-    for (i, seg) in route.segments.iter().enumerate() {
-        if let Segment::Vertical { x, y_start, y_end } = seg {
-            let offset_right = if i > 0 {
-                match &route.segments[i - 1] {
-                    Segment::Horizontal { x_start, x_end, .. } => x_end > x_start,
-                    _ => true,
-                }
-            } else {
-                true
-            };
-            let (out_x, out_anchor, in_x, in_anchor) = if offset_right {
-                (*x + 4.0, "start", *x - 4.0, "end")
-            } else {
-                (*x - 4.0, "end", *x + 4.0, "start")
-            };
+    //
+    // For V-H-V anchor routes, we generate candidates from the longest vertical
+    // segment first (preferred), then the shorter one. This ensures that labels
+    // for edges with short horizontal segments (where nodes are nearly aligned)
+    // are placed on the longer vertical run where there's more clear space.
+    {
+        // Find the longest vertical segment index.
+        let mut vert_indices: Vec<usize> = route.segments.iter().enumerate()
+            .filter_map(|(i, seg)| {
+                if matches!(seg, Segment::Vertical { .. }) { Some(i) } else { None }
+            })
+            .collect();
+        // Sort by length descending — prefer the longest vertical segment.
+        vert_indices.sort_by(|&a, &b| {
+            route.segments[b].length()
+                .partial_cmp(&route.segments[a].length())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        // Limit to at most 2 vertical segments to avoid candidate explosion.
+        vert_indices.truncate(2);
 
-            // 25% position (near source junction) — inward side first (preferred).
-            let y_25 = y_start + (y_end - y_start) * 0.25;
-            candidates.push((in_x, y_25, in_anchor));
+        for &i in &vert_indices {
+            if let Segment::Vertical { x, y_start, y_end } = &route.segments[i] {
+                let offset_right = if i > 0 {
+                    match &route.segments[i - 1] {
+                        Segment::Horizontal { x_start, x_end, .. } => x_end > x_start,
+                        _ => true,
+                    }
+                } else {
+                    true
+                };
+                let (out_x, out_anchor, in_x, in_anchor) = if offset_right {
+                    (*x + 4.0, "start", *x - 4.0, "end")
+                } else {
+                    (*x - 4.0, "end", *x + 4.0, "start")
+                };
 
-            // 25% position — outward side.
-            candidates.push((out_x, y_25, out_anchor));
+                // 25% position (near source junction) — inward side first (preferred).
+                let y_25 = y_start + (y_end - y_start) * 0.25;
+                candidates.push((in_x, y_25, in_anchor));
 
-            // 50% position (midpoint) — inward side first.
-            let y_50 = (y_start + y_end) / 2.0;
-            candidates.push((in_x, y_50, in_anchor));
+                // 25% position — outward side.
+                candidates.push((out_x, y_25, out_anchor));
 
-            // 50% position — outward side.
-            candidates.push((out_x, y_50, out_anchor));
+                // 50% position (midpoint) — inward side first.
+                let y_50 = (y_start + y_end) / 2.0;
+                candidates.push((in_x, y_50, in_anchor));
 
-            // 75% position (near target junction) — inward side first.
-            let y_75 = y_start + (y_end - y_start) * 0.75;
-            candidates.push((in_x, y_75, in_anchor));
+                // 50% position — outward side.
+                candidates.push((out_x, y_50, out_anchor));
 
-            // 75% position — outward side.
-            candidates.push((out_x, y_75, out_anchor));
+                // 75% position (near target junction) — inward side first.
+                let y_75 = y_start + (y_end - y_start) * 0.75;
+                candidates.push((in_x, y_75, in_anchor));
 
-            break; // Only use first vertical segment.
+                // 75% position — outward side.
+                candidates.push((out_x, y_75, out_anchor));
+            }
         }
     }
 
