@@ -559,12 +559,55 @@ fn segment_intersects_aabb(
     true
 }
 
+/// Minimum distance from an orthogonal line segment to an AABB.
+///
+/// Returns 0.0 when the segment intersects the AABB.  For non-intersecting
+/// cases, computes the axis-aligned gap for horizontal/vertical segments.
+fn segment_distance_to_aabb(seg: &LineSeg, aabb: &(f64, f64, f64, f64)) -> f64 {
+    if segment_intersects_aabb(seg, aabb) {
+        return 0.0;
+    }
+    let ((x1, y1), (x2, y2)) = *seg;
+    let (ax, ay, aw, ah) = *aabb;
+    let seg_min_x = x1.min(x2);
+    let seg_max_x = x1.max(x2);
+    let seg_min_y = y1.min(y2);
+    let seg_max_y = y1.max(y2);
+
+    // Signed axis distances (negative = overlap on that axis).
+    let dx = if seg_max_x < ax {
+        ax - seg_max_x
+    } else if seg_min_x > ax + aw {
+        seg_min_x - (ax + aw)
+    } else {
+        0.0
+    };
+    let dy = if seg_max_y < ay {
+        ay - seg_max_y
+    } else if seg_min_y > ay + ah {
+        seg_min_y - (ay + ah)
+    } else {
+        0.0
+    };
+    // For orthogonal segments, Chebyshev-style max of the axis gaps is the
+    // true distance (one axis gap is always 0 when not intersecting and the
+    // segment is axis-aligned).
+    dx.max(dy)
+}
+
+/// Minimum distance (in pixels) between a label and any edge segment before a
+/// proximity penalty is applied.  Labels closer than this to an edge line are
+/// penalised to discourage near-overlaps.
+const LABEL_EDGE_MIN_DISTANCE: f64 = 3.0;
+
 /// Pick the best label candidate position by minimizing collisions.
 ///
 /// Scores each candidate against:
 /// - Already-placed labels (Label-Label overlap: +3 penalty)
 /// - Domain/node obstacle AABBs (Label-Domain/Node overlap: +1 penalty each)
+/// - Own edge segments (Label sitting on its own edge: +5 penalty)
 /// - Other edge segments (Edge-Label overlap: +2 penalty each, max 4)
+/// - Edge proximity (Label within LABEL_EDGE_MIN_DISTANCE of any edge: +1)
 #[allow(clippy::too_many_arguments)]
 fn pick_best_label_candidate(
     candidates: &[(f64, f64, &'static str)],
@@ -654,7 +697,19 @@ fn pick_best_label_candidate(
             }
         }
 
-        // Edge-Label collisions (moderate penalty, capped to limit cost).
+        // Own-edge collision penalty: the label should not sit on top of
+        // the edge it describes.  This is a moderate penalty — less than
+        // node occlusion but enough to prefer clear positions.
+        if let Some(own_segs) = edge_segments.get(own_route_idx) {
+            for seg in own_segs {
+                if segment_intersects_aabb(seg, &bb) {
+                    score += 5;
+                    break;
+                }
+            }
+        }
+
+        // Edge-Label collisions with OTHER edges (moderate penalty, capped).
         let mut edge_hits = 0u32;
         for (idx, segs) in edge_segments.iter().enumerate() {
             if idx == own_route_idx {
@@ -671,6 +726,20 @@ fn pick_best_label_candidate(
             }
         }
         score += edge_hits * 2;
+
+        // Near-edge proximity penalty: discourage labels that are very
+        // close to any edge segment without quite overlapping.  This
+        // catches cases where the label is technically clear but visually
+        // crowds the edge line.
+        for segs in edge_segments.iter() {
+            for seg in segs {
+                let d = segment_distance_to_aabb(seg, &bb);
+                if d > 0.0 && d < LABEL_EDGE_MIN_DISTANCE {
+                    score += 1;
+                    break; // one penalty per edge route
+                }
+            }
+        }
 
         if score < best_score {
             best_score = score;

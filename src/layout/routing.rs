@@ -1779,6 +1779,11 @@ pub fn route_all_edges(
     fix_bracket_nesting_channels(graph, &mut routes);
     fix_pill_fanout_order(graph, &mut routes);
 
+    // Phase 3: Node avoidance. Deflect vertical segments that pass through
+    // non-endpoint nodes. This must run after all channel reassignment
+    // passes so the final segment positions are known.
+    deflect_vertical_segments_around_nodes(graph, &mut routes, node_layouts);
+
     // Shorten final segments for arrowheads AFTER all channel reassignment
     // passes, so the arrowhead direction matches the final route geometry.
     for route in &mut routes {
@@ -1786,6 +1791,139 @@ pub fn route_all_edges(
     }
 
     routes
+}
+
+/// Deflect vertical edge segments that pass through non-endpoint node bounding
+/// boxes.
+///
+/// After all routing and channel reassignment passes, some vertical segments
+/// may still pass through a node that is not an endpoint of the edge. This
+/// happens when corridors are positioned at domain boundaries but nodes are
+/// stacked vertically within a domain, and an edge from another node routes
+/// through the domain corridor whose x-position falls within a non-endpoint
+/// node's bounding box.
+///
+/// For each such collision, the vertical segment is shifted to the nearest
+/// edge (left or right) of the obstructing node, plus a small padding gap.
+/// The adjacent horizontal segments are updated to maintain connectivity.
+///
+/// **Exemptions:**
+/// - Anchor (parent-child) edges are never deflected — their vertical
+///   segments naturally pass through their own nodes.
+/// - Edges connected to the obstructing node are exempt (the vertical
+///   segment is expected to touch the node boundary).
+fn deflect_vertical_segments_around_nodes(
+    graph: &Graph,
+    routes: &mut [Route],
+    node_layouts: &[NodeLayout],
+) {
+    /// Padding around node bounding boxes to prevent edges from running
+    /// right along the node edge.
+    const NODE_AVOIDANCE_PAD: f64 = 4.0;
+
+    for route in routes.iter_mut() {
+        // Only deflect constraint edges — anchors naturally pass through nodes.
+        if graph.edges[route.edge_id.index()].is_anchor() {
+            continue;
+        }
+
+        // Find the endpoint node IDs for this edge.
+        let (src_node, dst_node) = graph.edge_node_ids(route.edge_id);
+
+        // Check each vertical segment for collision with non-endpoint nodes.
+        // We iterate by index because we may need to look at adjacent segments.
+        let n_segs = route.segments.len();
+        for seg_idx in 0..n_segs {
+            let (v_x, v_y_start, v_y_end) = match &route.segments[seg_idx] {
+                Segment::Vertical { x, y_start, y_end } => (*x, *y_start, *y_end),
+                _ => continue,
+            };
+
+            let v_y_lo = v_y_start.min(v_y_end);
+            let v_y_hi = v_y_start.max(v_y_end);
+
+            // Find the node whose bounding box this vertical segment passes
+            // through, if any. We pick the first obstruction found.
+            let mut best_deflection: Option<f64> = None;
+
+            for nl in node_layouts {
+                // Skip endpoint nodes — edges are allowed to touch them.
+                if nl.id == src_node || nl.id == dst_node {
+                    continue;
+                }
+
+                // Check if the vertical segment passes through this node's
+                // bounding box (with padding).
+                let node_left = nl.x - NODE_AVOIDANCE_PAD;
+                let node_right = nl.x + nl.width + NODE_AVOIDANCE_PAD;
+                let node_top = nl.y - NODE_AVOIDANCE_PAD;
+                let node_bottom = nl.y + nl.height + NODE_AVOIDANCE_PAD;
+
+                // Vertical segment must be within node's x-range.
+                if v_x < node_left || v_x > node_right {
+                    continue;
+                }
+
+                // Vertical segment must overlap the node's y-range.
+                if v_y_hi < node_top || v_y_lo > node_bottom {
+                    continue;
+                }
+
+                // Collision detected. Determine the deflection direction:
+                // shift to whichever node edge (left or right) is closer.
+                let dist_to_left = (v_x - (nl.x - NODE_AVOIDANCE_PAD)).abs();
+                let dist_to_right = ((nl.x + nl.width + NODE_AVOIDANCE_PAD) - v_x).abs();
+
+                let new_x = if dist_to_left <= dist_to_right {
+                    nl.x - NODE_AVOIDANCE_PAD
+                } else {
+                    nl.x + nl.width + NODE_AVOIDANCE_PAD
+                };
+
+                // Pick the deflection that moves the segment the least.
+                match best_deflection {
+                    None => best_deflection = Some(new_x),
+                    Some(prev) => {
+                        if (new_x - v_x).abs() < (prev - v_x).abs() {
+                            best_deflection = Some(new_x);
+                        }
+                    }
+                }
+            }
+
+            let Some(new_x) = best_deflection else { continue };
+            if (new_x - v_x).abs() < 0.01 { continue; }
+
+            // Apply the deflection: update the vertical segment's x.
+            if let Segment::Vertical { x, .. } = &mut route.segments[seg_idx] {
+                *x = new_x;
+            }
+
+            // Update the adjacent horizontal segment endpoints to maintain
+            // connectivity. The horizontal segment before this vertical has
+            // its corridor-side endpoint at the old v_x — update to new_x.
+            if seg_idx > 0 {
+                if let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx - 1] {
+                    if (*x_end - v_x).abs() < 0.5 {
+                        *x_end = new_x;
+                    } else if (*x_start - v_x).abs() < 0.5 {
+                        *x_start = new_x;
+                    }
+                }
+            }
+
+            // The horizontal segment after this vertical.
+            if seg_idx + 1 < n_segs {
+                if let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx + 1] {
+                    if (*x_start - v_x).abs() < 0.5 {
+                        *x_start = new_x;
+                    } else if (*x_end - v_x).abs() < 0.5 {
+                        *x_end = new_x;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Fix pill fan-out crossing by reordering pill port x positions to match
