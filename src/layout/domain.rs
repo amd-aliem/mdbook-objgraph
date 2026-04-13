@@ -621,7 +621,9 @@ fn count_cross_domain_channels(
 /// Compute column widths and gap widths.
 ///
 /// Column width = max domain natural width across all domains in the column.
-/// Domain natural width = max(member node widths) + 2 * lr_pad.
+/// Domain natural width accounts for multi-node rows: when a domain has
+/// multiple nodes on the same layer, the row width is the sum of their
+/// widths plus inter-node spacing.
 /// Gap width = CORRIDOR_PAD * 2 + max(0, n_edges - 1) * CHANNEL_GAP.
 fn compute_column_widths(
     columns: &[Vec<usize>],
@@ -640,12 +642,10 @@ fn compute_column_widths(
                 .map(|&dl_idx| {
                     let did = domain_layouts[dl_idx].id;
                     let domain = graph.domains.iter().find(|d| d.id == did).unwrap();
-                    let max_node_width = domain
-                        .members
-                        .iter()
-                        .map(|&nid| node_layouts[nid.index()].width)
-                        .fold(0.0_f64, f64::max);
-                    max_node_width + 2.0 * lr_pad
+                    // Group members by y-coordinate (layer) and compute
+                    // the widest row, accounting for side-by-side placement.
+                    let max_row_width = domain_max_row_width(&domain.members, node_layouts);
+                    max_row_width + 2.0 * lr_pad
                 })
                 .fold(0.0_f64, f64::max)
         })
@@ -660,6 +660,37 @@ fn compute_column_widths(
         .collect();
 
     (col_widths, gap_widths)
+}
+
+/// Compute the maximum row width across all layers of a domain's member nodes.
+///
+/// Groups nodes by their y-coordinate (layer). For each group, computes the
+/// total width as: sum(node widths) + (n-1) * NODE_H_SPACING.
+/// Returns the maximum across all groups.
+fn domain_max_row_width(
+    members: &[crate::model::types::NodeId],
+    node_layouts: &[NodeLayout],
+) -> f64 {
+    use std::collections::HashMap;
+
+    let mut y_groups: HashMap<i64, Vec<crate::model::types::NodeId>> = HashMap::new();
+    for &nid in members {
+        let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
+        y_groups.entry(y_key).or_default().push(nid);
+    }
+
+    y_groups.values().map(|group| {
+        if group.len() <= 1 {
+            group.iter()
+                .map(|&nid| node_layouts[nid.index()].width)
+                .fold(0.0_f64, f64::max)
+        } else {
+            let total_node_width: f64 = group.iter()
+                .map(|&nid| node_layouts[nid.index()].width)
+                .sum();
+            total_node_width + (group.len() as f64 - 1.0) * super::NODE_H_SPACING
+        }
+    }).fold(0.0_f64, f64::max)
 }
 
 /// Reposition all domain member nodes into their assigned columns.
@@ -686,7 +717,9 @@ fn reposition_to_columns(
         }
     }
 
-    // For each domain in each column, shift member nodes.
+    // For each domain in each column, position member nodes.
+    // Nodes on the same layer (same y-coordinate) that are siblings
+    // (share the same parent) are placed side-by-side within the domain.
     for (col_idx, col_domains) in columns.iter().enumerate() {
         for &dl_idx in col_domains {
             let did = domain_layouts[dl_idx].id;
@@ -696,26 +729,66 @@ fn reposition_to_columns(
                 continue;
             }
 
-            // Domain natural width (max node width).
-            let max_node_width = domain
-                .members
-                .iter()
-                .map(|&nid| node_layouts[nid.index()].width)
-                .fold(0.0_f64, f64::max);
-            let domain_natural_width = max_node_width + 2.0 * lr_pad;
+            // Group domain members by their y-coordinate (layer).
+            // Nodes with identical y values are on the same layer.
+            let mut y_groups: HashMap<i64, Vec<crate::model::types::NodeId>> = HashMap::new();
+            for &nid in &domain.members {
+                let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
+                y_groups.entry(y_key).or_default().push(nid);
+            }
+
+            // Compute domain natural width: the widest row of nodes placed
+            // side-by-side, plus padding. For rows with a single node this is
+            // the node width; for rows with N nodes it is
+            //   N * node_width + (N-1) * NODE_H_SPACING.
+            let max_row_width = y_groups.values().map(|group| {
+                if group.len() <= 1 {
+                    group.iter()
+                        .map(|&nid| node_layouts[nid.index()].width)
+                        .fold(0.0_f64, f64::max)
+                } else {
+                    let total_node_width: f64 = group.iter()
+                        .map(|&nid| node_layouts[nid.index()].width)
+                        .sum();
+                    total_node_width + (group.len() as f64 - 1.0) * super::NODE_H_SPACING
+                }
+            }).fold(0.0_f64, f64::max);
+
+            let domain_natural_width = max_row_width + 2.0 * lr_pad;
 
             // Centering offset within the column.
             let centering_offset = (col_widths[col_idx] - domain_natural_width).max(0.0) / 2.0;
 
-            // Target x for nodes inside this domain.
-            // All nodes share uniform width, so align them to the same x.
-            // Using direct assignment (not delta shift) ensures nodes that
-            // were at different x positions after Brandes-Kopf end up aligned.
-            let target_x = col_x[col_idx] + lr_pad + centering_offset;
+            // Base x for the leftmost node in this domain.
+            let base_x = col_x[col_idx] + lr_pad + centering_offset;
 
-            // Set all member nodes to the target x position.
-            for &nid in &domain.members {
-                node_layouts[nid.index()].x = target_x;
+            for group in y_groups.values() {
+                if group.len() == 1 {
+                    // Single node on this layer: center it in the row.
+                    let nid = group[0];
+                    let nw = node_layouts[nid.index()].width;
+                    node_layouts[nid.index()].x = base_x + (max_row_width - nw) / 2.0;
+                } else {
+                    // Multiple nodes on same layer: place side by side, centered.
+                    // Sort by the original Brandes-Kopf x to maintain ordering.
+                    let mut sorted: Vec<crate::model::types::NodeId> = group.clone();
+                    sorted.sort_by(|a, b| {
+                        node_layouts[a.index()].x
+                            .partial_cmp(&node_layouts[b.index()].x)
+                            .unwrap()
+                    });
+                    let total_w: f64 = sorted.iter()
+                        .map(|&nid| node_layouts[nid.index()].width)
+                        .sum();
+                    let total_row = total_w + (sorted.len() as f64 - 1.0) * super::NODE_H_SPACING;
+                    // Center the group within the max_row_width.
+                    let group_offset = (max_row_width - total_row).max(0.0) / 2.0;
+                    let mut cursor = base_x + group_offset;
+                    for &nid in &sorted {
+                        node_layouts[nid.index()].x = cursor;
+                        cursor += node_layouts[nid.index()].width + super::NODE_H_SPACING;
+                    }
+                }
             }
         }
     }

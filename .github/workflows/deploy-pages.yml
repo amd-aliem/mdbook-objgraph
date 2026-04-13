@@ -7,7 +7,7 @@ on:
     paths:
       - 'examples/**'
       - 'scripts/build-pages.py'
-      - 'src/bin/obgraph-render.rs'
+      - 'src/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
