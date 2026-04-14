@@ -647,6 +647,71 @@ fn intra_domain_corridor_side(
     }
 }
 
+/// For a node in a domain, determine which domain boundary the node is closest
+/// to. Returns `Left` if the node center is closer to the domain's left edge,
+/// `Right` if closer to the right edge.
+fn nearest_domain_edge_side(
+    nl: &NodeLayout,
+    domain_id: DomainId,
+    domain_layouts: &[DomainLayout],
+) -> PortSide {
+    let dl = match domain_layouts.iter().find(|dl| dl.id == domain_id) {
+        Some(d) => d,
+        None => return PortSide::Right,
+    };
+    let node_cx = nl.x + nl.width / 2.0;
+    let dist_left = (node_cx - dl.x).abs();
+    let dist_right = ((dl.x + dl.width) - node_cx).abs();
+    if dist_left <= dist_right {
+        PortSide::Left
+    } else {
+        PortSide::Right
+    }
+}
+
+/// For a cross-domain edge, determine which side of the source/target node
+/// faces the inter-column gap between the two domains.
+///
+/// Returns `Some((src_side, tgt_side))` when the nodes are in different domains
+/// and different columns. `src_side` is the side the edge should exit from the
+/// source node; `tgt_side` is the side it should enter the target node. Both
+/// face the gap between the two domain columns.
+///
+/// Returns `None` if nodes are in the same domain, if domain info is missing,
+/// or if the domains are in the same column (handled by `same_column_outer_side`).
+fn cross_domain_gap_side(
+    graph: &Graph,
+    src_node: NodeId,
+    tgt_node: NodeId,
+    domain_layouts: &[DomainLayout],
+) -> Option<(PortSide, PortSide)> {
+    let src_domain = graph.nodes[src_node.index()].domain?;
+    let tgt_domain = graph.nodes[tgt_node.index()].domain?;
+
+    if src_domain == tgt_domain {
+        return None;
+    }
+
+    let src_dl = domain_layouts.iter().find(|dl| dl.id == src_domain)?;
+    let tgt_dl = domain_layouts.iter().find(|dl| dl.id == tgt_domain)?;
+
+    let src_center = src_dl.x + src_dl.width / 2.0;
+    let tgt_center = tgt_dl.x + tgt_dl.width / 2.0;
+
+    if (src_center - tgt_center).abs() < 1.0 {
+        // Same column — handled by same_column_outer_side.
+        return None;
+    }
+
+    if src_center < tgt_center {
+        // Target domain is to the right → exit right, enter left.
+        Some((PortSide::Right, PortSide::Left))
+    } else {
+        // Target domain is to the left → exit left, enter right.
+        Some((PortSide::Left, PortSide::Right))
+    }
+}
+
 /// Determine if two nodes' domains are in the same column and which side is "outer".
 ///
 /// Two domains are in the same column if their x-ranges overlap significantly.
@@ -708,25 +773,31 @@ fn same_column_outer_side(
         (false, false) => PortSide::Right,  // No neighbors; default to right.
     };
 
-    // When the source domain extends beyond the target domain on the proposed
-    // outer side, the inter-domain corridor between them is positioned at the
-    // target domain's boundary — "behind" the source node's port. Bracket
-    // routing through that corridor is impossible, so fall back to normal
-    // cross-column routing through the inter-column gap corridor.
-    let src_overhangs = match proposed_side {
-        PortSide::Right => src_right > tgt_right + 1.0,
-        PortSide::Left => src_left < tgt_left - 1.0,
+    // When the source domain extends beyond the target domain on a given side,
+    // the inter-domain corridor is positioned at the target domain's boundary —
+    // "behind" the source node's port. Bracket routing through that corridor is
+    // impossible. Try the opposite side if the proposed side overhangs; if both
+    // sides overhang, fall back to cross-column routing.
+    let overhangs = |side: PortSide| -> bool {
+        match side {
+            PortSide::Right => src_right > tgt_right + 1.0,
+            PortSide::Left => src_left < tgt_left - 1.0,
+        }
     };
-    if src_overhangs {
-        return None;
+    if !overhangs(proposed_side) {
+        return Some(proposed_side);
     }
-
-    Some(proposed_side)
+    let opposite = proposed_side.opposite();
+    if !overhangs(opposite) {
+        return Some(opposite);
+    }
+    None
 }
 
 /// Determine the port side for a cross-node constraint based on coordinate-space
-/// geometry. Encapsulates the cascade: same_column_outer_side → center-x
-/// comparison → intra_domain_corridor_side fallback.
+/// geometry. Encapsulates the cascade: same_column_outer_side →
+/// cross_domain_gap_side → nearest_domain_edge_side (cross-domain) → center-x
+/// comparison (same-domain).
 fn determine_constraint_side(
     graph: &Graph,
     src_node: NodeId,
@@ -739,7 +810,22 @@ fn determine_constraint_side(
         return outer_side;
     }
 
-    // Use coordinate-space horizontal positions.
+    // Cross-domain different-column: route toward the inter-column gap.
+    if let Some((src_side, _)) = cross_domain_gap_side(graph, src_node, dst_node, domain_layouts) {
+        return src_side;
+    }
+
+    // Cross-domain same-column with double overhang: route via nearest domain boundary.
+    let src_dom = graph.nodes[src_node.index()].domain;
+    let dst_dom = graph.nodes[dst_node.index()].domain;
+    if let (Some(src_d), Some(_), Some(src_nl)) =
+        (src_dom, dst_dom, find_node_layout(node_layouts, src_node))
+        && src_dom != dst_dom
+    {
+        return nearest_domain_edge_side(src_nl, src_d, domain_layouts);
+    }
+
+    // Same-domain fallback: use coordinate-space horizontal positions.
     let src_nl = find_node_layout(node_layouts, src_node);
     let tgt_nl = find_node_layout(node_layouts, dst_node);
     match (src_nl, tgt_nl) {
@@ -963,9 +1049,39 @@ pub fn refine_port_sides(
                     continue;
                 }
 
-                // Different-node constraints: override with coordinate-space
-                // horizontal positions, which are more accurate than layer-space
-                // indices for determining exit/entry direction.
+                // Cross-domain different-column: route through the inter-column
+                // gap. Port sides face the gap so the edge takes the shortest
+                // path without passing under sibling nodes.
+                if let Some((src_side, tgt_side)) =
+                    cross_domain_gap_side(graph, src_node, dst_node, domain_layouts)
+                {
+                    sides.insert((edge_id, EndpointRole::Upstream), src_side);
+                    sides.insert((edge_id, EndpointRole::Downstream), tgt_side);
+                    continue;
+                }
+
+                // Cross-domain same-column with double overhang: route via nearest domain boundary.
+                let src_dom = graph.nodes[src_node.index()].domain;
+                let dst_dom = graph.nodes[dst_node.index()].domain;
+                if let (Some(src_d), Some(dst_d)) = (src_dom, dst_dom)
+                    && src_d != dst_d
+                {
+                    let src_nl_r = match find_node_layout(node_layouts, src_node) {
+                        Some(nl) => nl,
+                        None => continue,
+                    };
+                    let tgt_nl_r = match find_node_layout(node_layouts, dst_node) {
+                        Some(nl) => nl,
+                        None => continue,
+                    };
+                    sides.insert((edge_id, EndpointRole::Upstream),
+                        nearest_domain_edge_side(src_nl_r, src_d, domain_layouts));
+                    sides.insert((edge_id, EndpointRole::Downstream),
+                        nearest_domain_edge_side(tgt_nl_r, dst_d, domain_layouts));
+                    continue;
+                }
+
+                // Same-domain fallback: use coordinate-space horizontal positions.
                 let src_nl = match find_node_layout(node_layouts, src_node) {
                     Some(nl) => nl,
                     None => continue,
@@ -985,8 +1101,6 @@ pub fn refine_port_sides(
                     sides.insert((edge_id, EndpointRole::Downstream), PortSide::Right);
                 } else {
                     // Same center x: data-driven side selection.
-                    // For same-domain, use intra-domain corridor side.
-                    // For cross-domain, also use domain geometry (no alternation).
                     let side = intra_domain_corridor_side(graph, src_node, domain_layouts);
                     sides.insert((edge_id, EndpointRole::Upstream), side);
                     sides.insert((edge_id, EndpointRole::Downstream), side);
