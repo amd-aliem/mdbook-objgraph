@@ -12,6 +12,61 @@ use super::{
     CHANNEL_GAP, CORRIDOR_PAD, DOMAIN_PADDING, DOMAIN_TITLE_HEIGHT, INTER_NODE_GAP,
 };
 
+/// Determine the horizontal spacing between sibling nodes in a domain.
+///
+/// Uses wider spacing (`NODE_H_SPACING_CORRIDOR`) when the domain has both:
+/// - Multiple layers of nodes (so vertical edge segments may pass through gaps)
+/// - Intra-domain constraint edges (bracket edges that route through corridors)
+///
+/// Otherwise uses the default `NODE_H_SPACING`.
+fn sibling_spacing(
+    domain_id: DomainId,
+    graph: &Graph,
+    node_layouts: &[NodeLayout],
+) -> f64 {
+    let domain = match graph.domains.iter().find(|d| d.id == domain_id) {
+        Some(d) => d,
+        None => return super::NODE_H_SPACING,
+    };
+
+    // Check if domain has multiple layers of nodes.
+    let mut y_set = std::collections::HashSet::new();
+    for &nid in &domain.members {
+        let y_key = (node_layouts[nid.index()].y * 100.0).round() as i64;
+        y_set.insert(y_key);
+    }
+
+    if y_set.len() <= 1 {
+        // Single layer: no vertical edges will pass through sibling gaps.
+        return super::NODE_H_SPACING;
+    }
+
+    // Check if domain has any intra-domain constraint edges (bracket edges
+    // that route through corridors between sibling nodes).
+    let has_intra_constraints = graph.edges.iter().any(|e| {
+        if let Edge::Constraint {
+            source_prop,
+            dest_prop,
+            ..
+        } = e
+        {
+            let src_node = graph.properties[source_prop.index()].node;
+            let dst_node = graph.properties[dest_prop.index()].node;
+            let src_domain = graph.nodes[src_node.index()].domain;
+            let dst_domain = graph.nodes[dst_node.index()].domain;
+            src_domain == Some(domain_id) && dst_domain == Some(domain_id)
+        } else {
+            false
+        }
+    });
+
+    if has_intra_constraints {
+        super::NODE_H_SPACING_CORRIDOR
+    } else {
+        super::NODE_H_SPACING
+    }
+}
+
 /// Compute bounding boxes for all domains from final node positions.
 pub fn compute_domain_bounds(graph: &Graph, node_layouts: &[NodeLayout]) -> Vec<DomainLayout> {
     graph
@@ -644,7 +699,7 @@ fn compute_column_widths(
                     let domain = graph.domains.iter().find(|d| d.id == did).unwrap();
                     // Group members by y-coordinate (layer) and compute
                     // the widest row, accounting for side-by-side placement.
-                    let max_row_width = domain_max_row_width(&domain.members, node_layouts);
+                    let max_row_width = domain_max_row_width(did, &domain.members, node_layouts, graph);
                     max_row_width + 2.0 * lr_pad
                 })
                 .fold(0.0_f64, f64::max)
@@ -665,13 +720,18 @@ fn compute_column_widths(
 /// Compute the maximum row width across all layers of a domain's member nodes.
 ///
 /// Groups nodes by their y-coordinate (layer). For each group, computes the
-/// total width as: sum(node widths) + (n-1) * NODE_H_SPACING.
+/// total width as: sum(node widths) + (n-1) * spacing, where spacing is
+/// determined dynamically by `sibling_spacing` (wider when corridors are needed).
 /// Returns the maximum across all groups.
 fn domain_max_row_width(
+    domain_id: DomainId,
     members: &[crate::model::types::NodeId],
     node_layouts: &[NodeLayout],
+    graph: &Graph,
 ) -> f64 {
     use std::collections::HashMap;
+
+    let spacing = sibling_spacing(domain_id, graph, node_layouts);
 
     let mut y_groups: HashMap<i64, Vec<crate::model::types::NodeId>> = HashMap::new();
     for &nid in members {
@@ -690,7 +750,7 @@ fn domain_max_row_width(
             let total_node_width: f64 = group.iter()
                 .map(|&nid| node_layouts[nid.index()].width)
                 .sum();
-            total_node_width + (group.len() as f64 - 1.0) * super::NODE_H_SPACING
+            total_node_width + (group.len() as f64 - 1.0) * spacing
         }
     }).fold(0.0_f64, f64::max)
 }
@@ -743,7 +803,7 @@ fn reposition_to_columns(
 
             // Compute domain natural width: the widest row of nodes placed
             // side-by-side, plus padding. Reuse domain_max_row_width helper.
-            let max_row_width = domain_max_row_width(&domain.members, node_layouts);
+            let max_row_width = domain_max_row_width(did, &domain.members, node_layouts, graph);
 
             let domain_natural_width = max_row_width + 2.0 * lr_pad;
 
@@ -752,6 +812,9 @@ fn reposition_to_columns(
 
             // Base x for the leftmost node in this domain.
             let base_x = col_x[col_idx] + lr_pad + centering_offset;
+
+            // Dynamic spacing for this domain's sibling nodes.
+            let spacing = sibling_spacing(did, graph, node_layouts);
 
             for group in y_groups.values() {
                 if group.len() == 1 {
@@ -771,13 +834,13 @@ fn reposition_to_columns(
                     let total_w: f64 = sorted.iter()
                         .map(|&nid| node_layouts[nid.index()].width)
                         .sum();
-                    let total_row = total_w + (sorted.len() as f64 - 1.0) * super::NODE_H_SPACING;
+                    let total_row = total_w + (sorted.len() as f64 - 1.0) * spacing;
                     // Center the group within the max_row_width.
                     let group_offset = (max_row_width - total_row).max(0.0) / 2.0;
                     let mut cursor = base_x + group_offset;
                     for &nid in &sorted {
                         node_layouts[nid.index()].x = cursor;
-                        cursor += node_layouts[nid.index()].width + super::NODE_H_SPACING;
+                        cursor += node_layouts[nid.index()].width + spacing;
                     }
                 }
             }

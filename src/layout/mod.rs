@@ -34,8 +34,10 @@ pub const PILL_CONTENT_PAD: f64 = 12.0;
 /// Vertical gap between nodes in the same column.
 pub const INTER_NODE_GAP: f64 = 28.0;
 /// Minimum horizontal gap between nodes in the same layer.
-/// Set to 60px to accommodate node-level channel corridors between sibling nodes.
-pub const NODE_H_SPACING: f64 = 60.0;
+pub const NODE_H_SPACING: f64 = 40.0;
+/// Wider horizontal gap used between sibling nodes whose domain requires
+/// corridor space for intra-domain bracket edge routing.
+pub const NODE_H_SPACING_CORRIDOR: f64 = 60.0;
 /// Vertical gap between node layers.
 pub const LAYER_V_SPACING: f64 = 48.0;
 /// Domain title area height (pad 12 + cap-height 8 + pad 12).
