@@ -652,7 +652,8 @@ const LABEL_NUDGE_GAP: f64 = 2.0;
 /// - Node occlusion (>50% overlap: +200, any overlap: +50)
 /// - Node proximity (within LABEL_NODE_MIN_DISTANCE: +5)
 /// - Already-placed labels (Label-Label overlap: +30 penalty)
-/// - Domain obstacle AABBs (Label-Domain overlap: +1 penalty each)
+/// - Domain obstacle AABBs (Label-Domain overlap: +1 penalty each; +10 extra in title strip)
+/// - Inter-domain gap (label center outside all domains: +8 penalty)
 /// - Own edge segments (Label sitting on its own edge: +5 penalty)
 /// - Other edge segments (Edge-Label overlap: +2 penalty each, max 4)
 /// - Edge proximity (Label within LABEL_EDGE_MIN_DISTANCE of any edge: +1)
@@ -667,6 +668,7 @@ fn pick_best_label_candidate(
     node_aabbs: &[(f64, f64, f64, f64)],
     edge_segments: &[Vec<LineSeg>],
     own_route_idx: usize,
+    own_domain_aabb: Option<(f64, f64, f64, f64)>,
 ) -> (f64, f64, &'static str) {
     if candidates.len() <= 1 {
         return candidates.first().copied().unwrap_or((0.0, 0.0, "middle"));
@@ -727,10 +729,23 @@ fn pick_best_label_candidate(
                     }
                 }
                 // Vertical shifts: label placed just above or below the node.
+                // Clamp to the domain content area to prevent labels from
+                // being pushed into domain title strips or inter-domain gaps.
                 let above_y = node_top - pad;
                 let below_y = node_bottom + label_h + pad;
-                all_candidates.push((cx, above_y, anchor));
-                all_candidates.push((cx, below_y, anchor));
+                if let Some(dom) = own_domain_aabb {
+                    let dom_content_top = dom.1 + DOMAIN_TITLE_HEIGHT + 4.0;
+                    let dom_content_bottom = dom.1 + dom.3 - 4.0;
+                    if above_y >= dom_content_top {
+                        all_candidates.push((cx, above_y, anchor));
+                    }
+                    if below_y <= dom_content_bottom {
+                        all_candidates.push((cx, below_y, anchor));
+                    }
+                } else {
+                    all_candidates.push((cx, above_y, anchor));
+                    all_candidates.push((cx, below_y, anchor));
+                }
             }
         }
     }
@@ -778,9 +793,26 @@ fn pick_best_label_candidate(
         }
 
         // Label-Domain collisions (moderate penalty).
+        // Extra penalty for landing in the domain title strip.
         for obs in obstacle_aabbs {
             if aabbs_overlap(&bb, obs) {
                 score += 1;
+                let label_cy = bb.1 + bb.3 / 2.0;
+                if label_cy < obs.1 + DOMAIN_TITLE_HEIGHT {
+                    score += 10;
+                }
+            }
+        }
+
+        // Inter-domain gap penalty: discourage labels in gaps between domains.
+        {
+            let label_cy = bb.1 + bb.3 / 2.0;
+            let in_any_domain = obstacle_aabbs.iter().any(|obs| {
+                label_cy >= obs.1 && label_cy <= obs.1 + obs.3
+                    && bb.0 + bb.2 > obs.0 && bb.0 < obs.0 + obs.2
+            });
+            if !in_any_domain && !obstacle_aabbs.is_empty() {
+                score += 8;
             }
         }
 
@@ -985,6 +1017,19 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
             Edge::Anchor { .. } => ANCHOR_LABEL_SIZE,
             Edge::Constraint { .. } => CONSTRAINT_LABEL_SIZE,
         };
+        let own_domain_aabb = {
+            let (src_node, dst_node) = graph.edge_nodes(edge);
+            let src_dom = graph.nodes[src_node.index()].domain;
+            let dst_dom = graph.nodes[dst_node.index()].domain;
+            match (src_dom, dst_dom) {
+                (Some(a), Some(b)) if a == b => {
+                    domain_layouts.iter()
+                        .find(|dl| dl.id == a)
+                        .map(|dl| (dl.x, dl.y, dl.width, dl.height))
+                }
+                _ => None,
+            }
+        };
         let label = label_text.map(|text| {
             let candidates = routing::route_label_candidates(route);
             let (x, y, anchor) = pick_best_label_candidate(
@@ -996,6 +1041,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
                 &node_aabbs,
                 &edge_segments,
                 route_idx,
+                own_domain_aabb,
             );
             let lbl = EdgeLabel {
                 text,
