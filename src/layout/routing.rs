@@ -2920,10 +2920,11 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
                 } else {
                     true
                 };
+                let off = super::LABEL_CANDIDATE_OFFSET;
                 let (out_x, out_anchor, in_x, in_anchor) = if offset_right {
-                    (*x + 4.0, "start", *x - 4.0, "end")
+                    (*x + off, "start", *x - off, "end")
                 } else {
-                    (*x - 4.0, "end", *x + 4.0, "start")
+                    (*x - off, "end", *x + off, "start")
                 };
 
                 // 25% position (near source junction) — inward side first (preferred).

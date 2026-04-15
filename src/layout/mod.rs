@@ -603,11 +603,22 @@ fn segment_distance_to_aabb(seg: &LineSeg, aabb: &(f64, f64, f64, f64)) -> f64 {
 /// penalised to discourage near-overlaps.
 const LABEL_EDGE_MIN_DISTANCE: f64 = 3.0;
 
+/// Minimum distance (in pixels) between a label and any node bounding box
+/// before a proximity penalty is applied.
+const LABEL_NODE_MIN_DISTANCE: f64 = 4.0;
+
+/// Offset (in pixels) applied when positioning a label candidate beside an
+/// edge segment or when shifting a label to clear a node.  Used in both
+/// `route_label_candidates` (routing.rs) and `pick_best_label_candidate`.
+pub(super) const LABEL_CANDIDATE_OFFSET: f64 = 6.0;
+
 /// Pick the best label candidate position by minimizing collisions.
 ///
 /// Scores each candidate against:
+/// - Node occlusion (>50% overlap: +200, any overlap: +50)
+/// - Node proximity (within LABEL_NODE_MIN_DISTANCE: +5)
 /// - Already-placed labels (Label-Label overlap: +3 penalty)
-/// - Domain/node obstacle AABBs (Label-Domain/Node overlap: +1 penalty each)
+/// - Domain obstacle AABBs (Label-Domain overlap: +1 penalty each)
 /// - Own edge segments (Label sitting on its own edge: +5 penalty)
 /// - Other edge segments (Edge-Label overlap: +2 penalty each, max 4)
 /// - Edge proximity (Label within LABEL_EDGE_MIN_DISTANCE of any edge: +1)
@@ -633,7 +644,7 @@ fn pick_best_label_candidate(
     // We shift in all four directions (left, right, above, below) to handle
     // both horizontal and vertical overlap geometries.
     let label_h = font_size;
-    let pad = 4.0;
+    let pad = LABEL_CANDIDATE_OFFSET;
     let mut all_candidates: Vec<(f64, f64, &'static str)> = candidates.to_vec();
     for &(cx, cy, anchor) in candidates {
         let (left, _right) = match anchor {
@@ -644,7 +655,7 @@ fn pick_best_label_candidate(
         let bb = (left, cy - font_size, text_width.max(0.01), font_size);
         for node_bb in node_aabbs {
             let frac = overlap_fraction(node_bb, &bb);
-            if frac > 0.3 {
+            if frac > 0.0 {
                 let node_right = node_bb.0 + node_bb.2;
                 let node_left = node_bb.0;
                 let node_top = node_bb.1;
@@ -676,13 +687,22 @@ fn pick_best_label_candidate(
         let mut score: u32 = 0;
 
         // Node occlusion penalty (very high — label becomes unreadable).
-        // Check each node: if >50% of label area is hidden behind node, heavy penalty.
+        // Any overlap with a node is heavily penalized to push labels clear.
+        // Near-miss proximity to nodes is also penalized to keep labels
+        // visually separate from node boxes.
         for node_bb in node_aabbs {
             let frac = overlap_fraction(node_bb, &bb);
             if frac > 0.5 {
-                score += 100;
-            } else if frac > 0.01 {
-                score += 10;
+                score += 200;
+            } else if frac > 0.0 {
+                score += 50;
+            } else {
+                // Near-node proximity: penalize labels too close to a node.
+                let label_seg = ((bb.0, bb.1 + bb.3 / 2.0), (bb.0 + bb.2, bb.1 + bb.3 / 2.0));
+                let d = segment_distance_to_aabb(&label_seg, node_bb);
+                if d > 0.0 && d < LABEL_NODE_MIN_DISTANCE {
+                    score += 5;
+                }
             }
         }
 
