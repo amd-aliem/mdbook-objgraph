@@ -2103,24 +2103,24 @@ fn deflect_vertical_segments_around_nodes(
             // Update the adjacent horizontal segment endpoints to maintain
             // connectivity. The horizontal segment before this vertical has
             // its corridor-side endpoint at the old v_x — update to new_x.
-            if seg_idx > 0 {
-                if let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx - 1] {
-                    if (*x_end - v_x).abs() < 0.5 {
-                        *x_end = new_x;
-                    } else if (*x_start - v_x).abs() < 0.5 {
-                        *x_start = new_x;
-                    }
+            if seg_idx > 0
+                && let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx - 1]
+            {
+                if (*x_end - v_x).abs() < 0.5 {
+                    *x_end = new_x;
+                } else if (*x_start - v_x).abs() < 0.5 {
+                    *x_start = new_x;
                 }
             }
 
             // The horizontal segment after this vertical.
-            if seg_idx + 1 < n_segs {
-                if let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx + 1] {
-                    if (*x_start - v_x).abs() < 0.5 {
-                        *x_start = new_x;
-                    } else if (*x_end - v_x).abs() < 0.5 {
-                        *x_end = new_x;
-                    }
+            if seg_idx + 1 < n_segs
+                && let Segment::Horizontal { x_start, x_end, .. } = &mut route.segments[seg_idx + 1]
+            {
+                if (*x_start - v_x).abs() < 0.5 {
+                    *x_start = new_x;
+                } else if (*x_end - v_x).abs() < 0.5 {
+                    *x_end = new_x;
                 }
             }
         }
@@ -2927,26 +2927,22 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
                     (*x - off, "end", *x + off, "start")
                 };
 
-                // 25% position (near source junction) — inward side first (preferred).
-                let y_25 = y_start + (y_end - y_start) * 0.25;
-                candidates.push((in_x, y_25, in_anchor));
-
-                // 25% position — outward side.
-                candidates.push((out_x, y_25, out_anchor));
-
-                // 50% position (midpoint) — inward side first.
-                let y_50 = (y_start + y_end) / 2.0;
-                candidates.push((in_x, y_50, in_anchor));
-
-                // 50% position — outward side.
-                candidates.push((out_x, y_50, out_anchor));
-
-                // 75% position (near target junction) — inward side first.
-                let y_75 = y_start + (y_end - y_start) * 0.75;
-                candidates.push((in_x, y_75, in_anchor));
-
-                // 75% position — outward side.
-                candidates.push((out_x, y_75, out_anchor));
+                // Generate candidates at regular intervals along the vertical
+                // segment, on both sides. For long segments, finer spacing
+                // (every 12.5%) prevents label clustering when many edges
+                // share the same corridor.
+                const LONG_SEGMENT_THRESHOLD: f64 = 200.0;
+                let seg_len = (y_end - y_start).abs();
+                let fractions: &[f64] = if seg_len > LONG_SEGMENT_THRESHOLD {
+                    &[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                } else {
+                    &[0.25, 0.5, 0.75]
+                };
+                for &frac in fractions {
+                    let y_pos = y_start + (y_end - y_start) * frac;
+                    candidates.push((in_x, y_pos, in_anchor));
+                    candidates.push((out_x, y_pos, out_anchor));
+                }
             }
         }
     }

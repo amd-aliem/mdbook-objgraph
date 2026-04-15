@@ -276,10 +276,12 @@ impl EdgeLabel {
     }
 
     /// Full AABB as (left_x, top_y, width, height).
-    /// SVG text y is the baseline; ascent ≈ font_size above it.
+    /// SVG text uses `dominant-baseline="central"`, so the text is vertically
+    /// centered on `self.y`. The bounding box extends `font_size / 2` above
+    /// and below.
     pub fn bounding_box(&self) -> (f64, f64, f64, f64) {
         let (left_x, right_x) = self.bounding_x();
-        (left_x, self.y - self.font_size, right_x - left_x, self.font_size)
+        (left_x, self.y - self.font_size / 2.0, right_x - left_x, self.font_size)
     }
 
     /// Clamp the label position so that its bounding box stays within
@@ -292,12 +294,14 @@ impl EdgeLabel {
         } else if right > max_x {
             self.x -= right - max_x; // shift left by the amount of right overflow
         }
-        // Clamp vertical: top of bounding box = y - font_size, bottom = y.
-        let top = self.y - self.font_size;
+        // Clamp vertical: with dominant-baseline="central", text is centered
+        // at y, so the bounding box spans [y - font_size/2, y + font_size/2].
+        let top = self.y - self.font_size / 2.0;
+        let bottom = self.y + self.font_size / 2.0;
         if top < 0.0 {
             self.y -= top; // shift down
-        } else if self.y > max_y {
-            self.y = max_y; // shift up so baseline is at max_y
+        } else if bottom > max_y {
+            self.y -= bottom - max_y; // shift up so bottom edge is at max_y
         }
     }
 }
@@ -612,12 +616,16 @@ const LABEL_NODE_MIN_DISTANCE: f64 = 4.0;
 /// `route_label_candidates` (routing.rs) and `pick_best_label_candidate`.
 pub(super) const LABEL_CANDIDATE_OFFSET: f64 = 6.0;
 
+/// Minimum vertical gap (in pixels) inserted between labels when the nudge
+/// pass separates overlapping labels.
+const LABEL_NUDGE_GAP: f64 = 2.0;
+
 /// Pick the best label candidate position by minimizing collisions.
 ///
 /// Scores each candidate against:
 /// - Node occlusion (>50% overlap: +200, any overlap: +50)
 /// - Node proximity (within LABEL_NODE_MIN_DISTANCE: +5)
-/// - Already-placed labels (Label-Label overlap: +3 penalty)
+/// - Already-placed labels (Label-Label overlap: +30 penalty)
 /// - Domain obstacle AABBs (Label-Domain overlap: +1 penalty each)
 /// - Own edge segments (Label sitting on its own edge: +5 penalty)
 /// - Other edge segments (Edge-Label overlap: +2 penalty each, max 4)
@@ -652,7 +660,7 @@ fn pick_best_label_candidate(
             "end" => (cx - text_width, cx),
             _ => (cx - text_width / 2.0, cx + text_width / 2.0),
         };
-        let bb = (left, cy - font_size, text_width.max(0.01), font_size);
+        let bb = (left, cy - font_size / 2.0, text_width.max(0.01), font_size);
         for node_bb in node_aabbs {
             let frac = overlap_fraction(node_bb, &bb);
             if frac > 0.0 {
@@ -682,7 +690,7 @@ fn pick_best_label_candidate(
             "end" => (cx - text_width, cx),
             _ => (cx - text_width / 2.0, cx + text_width / 2.0),
         };
-        let bb = (left, cy - font_size, right - left, font_size);
+        let bb = (left, cy - font_size / 2.0, right - left, font_size);
 
         let mut score: u32 = 0;
 
@@ -706,10 +714,11 @@ fn pick_best_label_candidate(
             }
         }
 
-        // Label-Label collisions (high penalty).
+        // Label-Label collisions (very high penalty — overlapping labels
+        // are unreadable and worse than crossing an edge line).
         for placed in placed_labels {
             if aabbs_overlap(&bb, placed) {
-                score += 3;
+                score += 30;
             }
         }
 
@@ -1025,6 +1034,68 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
         for cdp in cross_domain_constraints.iter_mut() {
             if let Some(ref mut label) = cdp.full_path.label {
                 clamp_label(label);
+            }
+        }
+    }
+
+    // Phase 7b: Nudge overlapping labels apart.
+    //
+    // After greedy placement and clamping, some labels may still overlap each
+    // other. This pass shifts one label in each overlapping pair vertically
+    // (up or down by the label height + small gap) to resolve collisions.
+    // Only shifts that don't cause a new node occlusion are applied.
+    {
+        // Gather mutable references to all labels.
+        let mut all_label_refs: Vec<&mut EdgeLabel> = Vec::new();
+        for ep in anchors.iter_mut().chain(intra_domain_constraints.iter_mut()) {
+            if let Some(ref mut label) = ep.label {
+                all_label_refs.push(label);
+            }
+        }
+        for cdp in cross_domain_constraints.iter_mut() {
+            if let Some(ref mut label) = cdp.full_path.label {
+                all_label_refs.push(label);
+            }
+        }
+
+        // Iterative nudge: check all pairs, shift the second label if overlapping.
+        // Repeat until no overlaps remain or a max iteration limit is reached.
+        let hits_node = |label: &EdgeLabel| -> bool {
+            let bb = label.bounding_box();
+            node_aabbs.iter().any(|nbb| overlap_fraction(nbb, &bb) > 0.0)
+        };
+        for _pass in 0..3 {
+            let mut any_shifted = false;
+            // Snapshot bounding boxes at the start of each pass to avoid O(n^2)
+            // recomputation. Labels shifted within a pass won't have up-to-date
+            // bounding boxes until the next pass.
+            let bbs: Vec<(f64, f64, f64, f64)> =
+                all_label_refs.iter().map(|l| l.bounding_box()).collect();
+            for i in 0..bbs.len() {
+                for j in (i + 1)..bbs.len() {
+                    if !aabbs_overlap(&bbs[i], &bbs[j]) {
+                        continue;
+                    }
+                    let shift = all_label_refs[j].font_size + LABEL_NUDGE_GAP;
+                    let orig_y = all_label_refs[j].y;
+
+                    // Try down first, then up. Accept the first that avoids nodes.
+                    all_label_refs[j].y = orig_y + shift;
+                    if !hits_node(all_label_refs[j]) {
+                        any_shifted = true;
+                        continue;
+                    }
+                    all_label_refs[j].y = orig_y - shift;
+                    if !hits_node(all_label_refs[j]) {
+                        any_shifted = true;
+                        continue;
+                    }
+                    // Both shifts hit a node — revert.
+                    all_label_refs[j].y = orig_y;
+                }
+            }
+            if !any_shifted {
+                break;
             }
         }
     }
