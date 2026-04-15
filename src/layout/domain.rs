@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::model::types::{DomainId, Edge, EdgeId, Graph};
 
 use super::{
-    DomainLayout, EndpointRole, NodeLayout, PortSide, PortSideAssignment,
+    DomainLayout, EdgePath, EndpointRole, NodeLayout, PortSide, PortSideAssignment,
     CHANNEL_GAP, CORRIDOR_PAD, DOMAIN_PADDING, DOMAIN_TITLE_HEIGHT, INTER_NODE_GAP,
 };
 
@@ -1255,6 +1255,71 @@ pub fn expand_corridors_for_edges(
             if node_domain.is_none() && nl.x > old_domain_right {
                 nl.x += total_extra;
             }
+        }
+    }
+}
+
+/// Expand domain bounding boxes vertically so that intra-domain edge labels
+/// are fully contained within their domain's background rectangle.
+///
+/// For each intra-domain edge label whose bounding box extends past its
+/// domain's top or bottom boundary, the domain is expanded (with 4px
+/// padding) on the overflowing side.
+///
+/// Horizontal expansion is intentionally skipped: expanding the domain
+/// left/right edge shifts the quality checker's corridor zones into the
+/// inter-column gap, causing false "inter-domain edge in intra-corridor"
+/// violations.  Labels that extend past the horizontal domain boundary
+/// will overflow visually but remain readable.
+pub fn expand_domains_for_labels(
+    domain_layouts: &mut [DomainLayout],
+    graph: &Graph,
+    anchors: &[EdgePath],
+    intra_domain_constraints: &[EdgePath],
+) {
+    let label_pad = 4.0;
+
+    for ep in anchors.iter().chain(intra_domain_constraints.iter()) {
+        let label = match &ep.label {
+            Some(l) => l,
+            None => continue,
+        };
+        let edge = &graph.edges[ep.edge_id.index()];
+        let (src_node_id, dst_node_id) = graph.edge_nodes(edge);
+        let src_domain = graph.nodes[src_node_id.index()].domain;
+        let dst_domain = graph.nodes[dst_node_id.index()].domain;
+
+        // Only process intra-domain edges (both endpoints in the same domain).
+        let domain_id = match (src_domain, dst_domain) {
+            (Some(a), Some(b)) if a == b => a,
+            _ => continue,
+        };
+
+        let dl_idx = match domain_layouts.iter().position(|dl| dl.id == domain_id) {
+            Some(i) => i,
+            None => continue,
+        };
+
+        let lbl_top = label.y - label.font_size / 2.0;
+        let lbl_bottom = label.y + label.font_size / 2.0;
+
+        let dl = &domain_layouts[dl_idx];
+        let dl_top = dl.y;
+        let dl_bottom = dl.y + dl.height;
+
+        // See docstring for why horizontal expansion is skipped.
+
+        // Expand top.
+        if lbl_top - label_pad < dl_top {
+            let new_top = lbl_top - label_pad;
+            let delta = dl_top - new_top;
+            domain_layouts[dl_idx].y = new_top;
+            domain_layouts[dl_idx].height += delta;
+        }
+        // Expand bottom.
+        if lbl_bottom + label_pad > dl_bottom {
+            let new_bottom = lbl_bottom + label_pad;
+            domain_layouts[dl_idx].height = new_bottom - domain_layouts[dl_idx].y;
         }
     }
 }

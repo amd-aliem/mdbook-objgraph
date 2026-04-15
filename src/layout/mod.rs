@@ -602,6 +602,32 @@ fn segment_distance_to_aabb(seg: &LineSeg, aabb: &(f64, f64, f64, f64)) -> f64 {
     dx.max(dy)
 }
 
+/// Minimum distance from a point to any axis-aligned line segment in a set.
+///
+/// Each segment is `((x1,y1),(x2,y2))` and is assumed to be either horizontal
+/// or vertical.  Returns `f64::INFINITY` when `segments` is empty.
+fn min_distance_point_to_segments(px: f64, py: f64, segments: &[LineSeg]) -> f64 {
+    let mut best = f64::INFINITY;
+    for &((x1, y1), (x2, y2)) in segments {
+        // Clamp projection onto the segment, then Euclidean distance.
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let len_sq = dx * dx + dy * dy;
+        let t = if len_sq < 1e-12 {
+            0.0
+        } else {
+            (((px - x1) * dx + (py - y1) * dy) / len_sq).clamp(0.0, 1.0)
+        };
+        let cx = x1 + t * dx;
+        let cy = y1 + t * dy;
+        let d = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
+        if d < best {
+            best = d;
+        }
+    }
+    best
+}
+
 /// Minimum distance (in pixels) between a label and any edge segment before a
 /// proximity penalty is applied.  Labels closer than this to an edge line are
 /// penalised to discourage near-overlaps.
@@ -630,6 +656,7 @@ const LABEL_NUDGE_GAP: f64 = 2.0;
 /// - Own edge segments (Label sitting on its own edge: +5 penalty)
 /// - Other edge segments (Edge-Label overlap: +2 penalty each, max 4)
 /// - Edge proximity (Label within LABEL_EDGE_MIN_DISTANCE of any edge: +1)
+/// - Distance from own edge (+1 per 20px of distance from nearest own-edge segment)
 #[allow(clippy::too_many_arguments)]
 fn pick_best_label_candidate(
     candidates: &[(f64, f64, &'static str)],
@@ -647,18 +674,32 @@ fn pick_best_label_candidate(
 
     let text_width = text.len() as f64 * font_size * LABEL_CHAR_WIDTH_FACTOR;
 
+    // Determine the corridor x-position from the edge's own route so that
+    // node-clearing horizontal shifts go toward the edge, not away from it.
+    // We find the longest vertical segment and use its x as reference.
+    let corridor_x: Option<f64> = edge_segments.get(own_route_idx).and_then(|segs| {
+        segs.iter()
+            .filter(|&&((x1, _), (x2, _))| (x1 - x2).abs() < 0.5) // vertical
+            .max_by(|a, b| {
+                let len_a = (a.0 .1 - a.1 .1).abs();
+                let len_b = (b.0 .1 - b.1 .1).abs();
+                len_a.partial_cmp(&len_b).unwrap()
+            })
+            .map(|&((x, _), _)| x)
+    });
+
     // Generate node-clearing candidates: for each primary candidate that would
     // be occluded by a node, create shifted versions just outside the node.
-    // We shift in all four directions (left, right, above, below) to handle
-    // both horizontal and vertical overlap geometries.
+    // Horizontal shifts are limited to the side toward the edge's corridor to
+    // prevent labels from ending up on the wrong side of the graph.
     let label_h = font_size;
     let pad = LABEL_CANDIDATE_OFFSET;
     let mut all_candidates: Vec<(f64, f64, &'static str)> = candidates.to_vec();
     for &(cx, cy, anchor) in candidates {
-        let (left, _right) = match anchor {
-            "start" => (cx, cx + text_width),
-            "end" => (cx - text_width, cx),
-            _ => (cx - text_width / 2.0, cx + text_width / 2.0),
+        let left = match anchor {
+            "start" => cx,
+            "end" => cx - text_width,
+            _ => cx - text_width / 2.0,
         };
         let bb = (left, cy - font_size / 2.0, text_width.max(0.01), font_size);
         for node_bb in node_aabbs {
@@ -668,9 +709,23 @@ fn pick_best_label_candidate(
                 let node_left = node_bb.0;
                 let node_top = node_bb.1;
                 let node_bottom = node_bb.1 + node_bb.3;
-                // Horizontal shifts: label placed just outside node edges.
-                all_candidates.push((node_right + pad, cy, "start"));
-                all_candidates.push((node_left - pad, cy, "end"));
+                // Horizontal shifts: only toward the corridor side when known.
+                let node_cx = node_bb.0 + node_bb.2 / 2.0;
+                match corridor_x {
+                    Some(corr_x) if corr_x > node_cx + 1.0 => {
+                        // Corridor is to the right of the node.
+                        all_candidates.push((node_right + pad, cy, "start"));
+                    }
+                    Some(corr_x) if corr_x < node_cx - 1.0 => {
+                        // Corridor is to the left of the node.
+                        all_candidates.push((node_left - pad, cy, "end"));
+                    }
+                    _ => {
+                        // No clear side — generate both.
+                        all_candidates.push((node_right + pad, cy, "start"));
+                        all_candidates.push((node_left - pad, cy, "end"));
+                    }
+                }
                 // Vertical shifts: label placed just above or below the node.
                 let above_y = node_top - pad;
                 let below_y = node_bottom + label_h + pad;
@@ -771,6 +826,17 @@ fn pick_best_label_candidate(
                     break; // one penalty per edge route
                 }
             }
+        }
+
+        // Distance-from-own-edge penalty: graduated cost that discourages
+        // labels far from their own edge route.  +1 per 20px of distance.
+        // 0px=+0, 20px=+1, 100px=+5, 140px=+7.  Enough to break ties
+        // without overriding node occlusion (+50/+200).
+        if let Some(own_segs) = edge_segments.get(own_route_idx) {
+            let label_cx = bb.0 + bb.2 / 2.0;
+            let label_cy = bb.1 + bb.3 / 2.0;
+            let dist = min_distance_point_to_segments(label_cx, label_cy, own_segs);
+            score += (dist / 20.0) as u32;
         }
 
         if score < best_score {
@@ -1099,6 +1165,15 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
             }
         }
     }
+
+    // Phase 7c: Expand domain backgrounds to encompass labels that spill
+    // outside their domain's bounding box.
+    domain::expand_domains_for_labels(
+        &mut domain_layouts,
+        graph,
+        &anchors,
+        &intra_domain_constraints,
+    );
 
     // Collect all edge labels for dimension computation.
     let all_labels: Vec<&EdgeLabel> = anchors
