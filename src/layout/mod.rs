@@ -988,7 +988,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     // inside the final canvas.
     //
     // IMPORTANT: clamping must not push a label INTO a node.  If the clamped
-    // position would overlap a node by >50%, we skip the clamp — a label that
+    // position would overlap any node, we skip the clamp — a label that
     // extends slightly past the canvas edge is better than one hidden behind
     // a node.
     {
@@ -1011,12 +1011,12 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
             let before_y = label.y;
             label.clamp_to_content_area(clamp_max_x, clamp_max_y);
 
-            // Check if the clamped position overlaps a node by >50%.
-            // If so, revert to the pre-clamp position.
+            // Check if the clamped position overlaps any node.  If so,
+            // revert — a label extending past the canvas edge is better
+            // than one hidden behind a node.
             let bb = label.bounding_box();
             for nbb in &node_aabbs {
-                let frac = overlap_fraction(nbb, &bb);
-                if frac > 0.5 {
+                if overlap_fraction(nbb, &bb) > 0.0 {
                     label.x = before_x;
                     label.y = before_y;
                     return;
