@@ -2940,8 +2940,9 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
                 };
                 for &frac in fractions {
                     let y_pos = y_start + (y_end - y_start) * frac;
-                    candidates.push((in_x, y_pos, in_anchor));
+                    // Open-space (outward) side first so it wins score ties.
                     candidates.push((out_x, y_pos, out_anchor));
+                    candidates.push((in_x, y_pos, in_anchor));
                 }
             }
         }

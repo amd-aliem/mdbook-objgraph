@@ -874,15 +874,6 @@ fn pick_best_label_candidate(
             score += (dist / 20.0) as u32;
         }
 
-        // Side-consistency: prefer labels on the near side of their edge's
-        // vertical corridor.  Both sides are equidistant, so this breaks ties.
-        if let Some(corr_x) = corridor_x {
-            let label_cx = (left + right) / 2.0;
-            if (label_cx - corr_x).abs() > LABEL_CANDIDATE_OFFSET + 2.0 {
-                score += 2;
-            }
-        }
-
         if score < best_score {
             best_score = score;
             best = (cx, cy, anchor);
