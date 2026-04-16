@@ -874,6 +874,27 @@ fn pick_best_label_candidate(
             score += (dist / 20.0) as u32;
         }
 
+        // Side-consistency: labels should appear on the open-space side of
+        // the corridor (away from the connected nodes).  +8 is strong enough
+        // to override soft penalties (near-edge +1, distance +1-7,
+        // near-node-proximity +5) but will NOT override label-label collision
+        // (+30) or node occlusion (+50/+200).
+        if let (Some(corr_x), Some(own_segs)) = (corridor_x, edge_segments.get(own_route_idx))
+            && let (Some(first_seg), Some(last_seg)) = (own_segs.first(), own_segs.last())
+        {
+            let node_avg_x = (first_seg.0 .0 + last_seg.1 .0) / 2.0;
+            let label_cx = (left + right) / 2.0;
+            let nodes_left = node_avg_x < corr_x;
+            let label_on_node_side = if nodes_left {
+                label_cx < corr_x
+            } else {
+                label_cx > corr_x
+            };
+            if label_on_node_side {
+                score += 8;
+            }
+        }
+
         if score < best_score {
             best_score = score;
             best = (cx, cy, anchor);

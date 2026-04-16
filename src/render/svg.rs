@@ -176,18 +176,16 @@ const LEADER_MIN_DISTANCE: f64 = 3.0;
 // Edge path rendering helper
 // ---------------------------------------------------------------------------
 
-/// Write an edge path element with optional label.
+/// Write just the `<path>` element for an edge (no label, no background).
 ///
 /// `class_prefix` is e.g. "obgraph-anchor" — appended with "-invalid" when invalid.
 /// `marker_prefix` is e.g. "arrow-anchor" — appended with "-valid"/"-invalid".
-/// `valid_color` is the label fill when the edge is valid (e.g. green or blue).
-fn write_edge_path(
+fn write_edge_path_only(
     out: &mut String,
     ep: &crate::layout::EdgePath,
     valid: bool,
     class_prefix: &str,
     marker_prefix: &str,
-    valid_color: &str,
 ) {
     let (class, marker) = if valid {
         (class_prefix.to_string(), format!("{marker_prefix}-valid"))
@@ -203,6 +201,19 @@ fn write_edge_path(
         marker = marker,
     )
     .unwrap();
+}
+
+/// Write the label elements for an edge: background rect, text, leader line, and dot.
+///
+/// `class_prefix` is e.g. "obgraph-anchor".
+/// `valid_color` is the label fill when the edge is valid (e.g. green or blue).
+fn write_edge_label(
+    out: &mut String,
+    ep: &crate::layout::EdgePath,
+    valid: bool,
+    class_prefix: &str,
+    valid_color: &str,
+) {
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
         // Knockout background rect — visually breaks the edge line behind the label.
@@ -281,19 +292,19 @@ fn is_edge_valid(edge_id: EdgeId, graph: &Graph, state: &StateResult) -> bool {
 fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &StateResult) {
     writeln!(out, r#"    <g class="obgraph-edges">"#).unwrap();
 
-    // --- Anchor paths ---
+    // --- Anchor paths (pass 1: paths only) ---
     writeln!(out, r#"      <g class="obgraph-anchors">"#).unwrap();
     for ep in &layout.anchors {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_path(out, ep, valid, "obgraph-anchor", "arrow-anchor", "#22c55e");
+        write_edge_path_only(out, ep, valid, "obgraph-anchor", "arrow-anchor");
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
-    // --- Intra-domain constraint paths ---
+    // --- Intra-domain constraint paths (pass 1: paths only) ---
     writeln!(out, r#"      <g class="obgraph-constraints-intra">"#).unwrap();
     for ep in &layout.intra_domain_constraints {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_path(out, ep, valid, "obgraph-constraint", "arrow-constraint", "#60a5fa");
+        write_edge_path_only(out, ep, valid, "obgraph-constraint", "arrow-constraint");
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
@@ -349,6 +360,24 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
                 .unwrap();
             }
         }
+    }
+    writeln!(out, r#"      </g>"#).unwrap();
+
+    // --- Pass 2: labels (painted on top of all paths) ---
+
+    // Anchor labels
+    writeln!(out, r#"      <g class="obgraph-anchor-labels">"#).unwrap();
+    for ep in &layout.anchors {
+        let valid = is_edge_valid(ep.edge_id, graph, state);
+        write_edge_label(out, ep, valid, "obgraph-anchor", "#22c55e");
+    }
+    writeln!(out, r#"      </g>"#).unwrap();
+
+    // Intra-domain constraint labels
+    writeln!(out, r#"      <g class="obgraph-constraint-labels">"#).unwrap();
+    for ep in &layout.intra_domain_constraints {
+        let valid = is_edge_valid(ep.edge_id, graph, state);
+        write_edge_label(out, ep, valid, "obgraph-constraint", "#60a5fa");
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
