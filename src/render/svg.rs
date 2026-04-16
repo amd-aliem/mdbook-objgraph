@@ -224,22 +224,30 @@ fn write_edge_path(
             x = lbl.x, y = lbl.y, fill = label_fill, anchor = lbl.anchor, text = escape_xml(&lbl.text)
         ).unwrap();
 
-        // Leader line: draw a subtle connector from the label center to the
+        // Leader line: draw a subtle connector from the label edge to the
         // nearest point on the edge path, making it clear which label belongs
         // to which arrow.  Only drawn when the distance exceeds a threshold.
-        if let Some((nx, ny, dist)) = nearest_point_on_segments(lbl.x, lbl.y, &ep.segments)
-            && dist > LEADER_MIN_DISTANCE
-        {
-            writeln!(
-                out,
-                r##"        <line class="obgraph-leader" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>"##,
-                x1 = lbl.x, y1 = lbl.y, x2 = nx, y2 = ny,
-            ).unwrap();
-            writeln!(
-                out,
-                r##"        <circle class="obgraph-leader-dot" cx="{cx}" cy="{cy}" r="1.5"/>"##,
-                cx = nx, cy = ny,
-            ).unwrap();
+        //
+        // The anchor point is placed at the left or right edge of the label
+        // bounding box (whichever side faces the edge) so the dot visually
+        // sits at the label boundary rather than its center.
+        let (left_x, right_x) = lbl.bounding_x();
+        if let Some((probe_nx, _probe_ny, _)) = nearest_point_on_segments(lbl.x, lbl.y, &ep.segments) {
+            let label_anchor_x = if probe_nx < lbl.x { left_x } else { right_x };
+            if let Some((nx, ny, dist)) = nearest_point_on_segments(label_anchor_x, lbl.y, &ep.segments)
+                && dist > LEADER_MIN_DISTANCE
+            {
+                writeln!(
+                    out,
+                    r##"        <line class="obgraph-leader" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>"##,
+                    x1 = label_anchor_x, y1 = lbl.y, x2 = nx, y2 = ny,
+                ).unwrap();
+                writeln!(
+                    out,
+                    r##"        <circle class="obgraph-leader-dot" cx="{cx}" cy="{cy}" r="1.5"/>"##,
+                    cx = nx, cy = ny,
+                ).unwrap();
+            }
         }
     }
 }
