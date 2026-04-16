@@ -1155,7 +1155,8 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
     // After greedy placement and clamping, some labels may still overlap each
     // other. This pass shifts one label in each overlapping pair vertically
     // (up or down by the label height + small gap) to resolve collisions.
-    // Only shifts that don't cause a new node occlusion are applied.
+    // Shifted positions are checked against ALL other labels and nodes to
+    // avoid creating new overlaps.
     {
         // Gather mutable references to all labels.
         let mut all_label_refs: Vec<&mut EdgeLabel> = Vec::new();
@@ -1170,40 +1171,77 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
             }
         }
 
-        // Iterative nudge: check all pairs, shift the second label if overlapping.
+        // Iterative nudge: check all pairs, shift one label if overlapping.
         // Repeat until no overlaps remain or a max iteration limit is reached.
-        let hits_node = |label: &EdgeLabel| -> bool {
-            let bb = label.bounding_box();
-            node_aabbs.iter().any(|nbb| overlap_fraction(nbb, &bb) > 0.0)
-        };
-        for _pass in 0..3 {
-            let mut any_shifted = false;
-            // Snapshot bounding boxes at the start of each pass to avoid O(n^2)
-            // recomputation. Labels shifted within a pass won't have up-to-date
-            // bounding boxes until the next pass.
-            let bbs: Vec<(f64, f64, f64, f64)> =
-                all_label_refs.iter().map(|l| l.bounding_box()).collect();
-            for i in 0..bbs.len() {
-                for j in (i + 1)..bbs.len() {
-                    if !aabbs_overlap(&bbs[i], &bbs[j]) {
-                        continue;
-                    }
-                    let shift = all_label_refs[j].font_size + LABEL_NUDGE_GAP;
-                    let orig_y = all_label_refs[j].y;
+        // Bounding boxes are recomputed live (not snapshotted) so that shifts
+        // within a pass are immediately visible to subsequent overlap checks.
 
-                    // Try down first, then up. Accept the first that avoids nodes.
-                    all_label_refs[j].y = orig_y + shift;
-                    if !hits_node(all_label_refs[j]) {
+        // Helper: check if label `target` at its current position collides with
+        // any node or any other label besides `skip`.
+        let collides_at =
+            |refs: &[&mut EdgeLabel], target: usize, skip: usize| -> bool {
+                let bb = refs[target].bounding_box();
+                if node_aabbs
+                    .iter()
+                    .any(|nbb| overlap_fraction(nbb, &bb) > 0.0)
+                {
+                    return true;
+                }
+                (0..refs.len()).any(|k| {
+                    if k == target || k == skip {
+                        return false;
+                    }
+                    aabbs_overlap(&bb, &refs[k].bounding_box())
+                })
+            };
+
+        for _pass in 0..5 {
+            let mut any_shifted = false;
+            for i in 0..all_label_refs.len() {
+                for j in (i + 1)..all_label_refs.len() {
+                    let bb_i = all_label_refs[i].bounding_box();
+                    let bb_j = all_label_refs[j].bounding_box();
+                    if !aabbs_overlap(&bb_i, &bb_j) {
+                        continue;
+                    }
+
+                    // Compute the minimal vertical shift to eliminate the
+                    // overlap: just the overlap extent plus a small gap.
+                    let (_, iy, _, ih) = bb_i;
+                    let (_, jy, _, jh) = bb_j;
+                    let overlap_y =
+                        (iy + ih).min(jy + jh) - iy.max(jy);
+                    let shift = overlap_y + LABEL_NUDGE_GAP;
+
+                    // Try shifting j (down then up).
+                    let orig_y_j = all_label_refs[j].y;
+
+                    all_label_refs[j].y = orig_y_j + shift;
+                    if !collides_at(&all_label_refs, j, i) {
                         any_shifted = true;
                         continue;
                     }
-                    all_label_refs[j].y = orig_y - shift;
-                    if !hits_node(all_label_refs[j]) {
+                    all_label_refs[j].y = orig_y_j - shift;
+                    if !collides_at(&all_label_refs, j, i) {
                         any_shifted = true;
                         continue;
                     }
-                    // Both shifts hit a node — revert.
-                    all_label_refs[j].y = orig_y;
+                    all_label_refs[j].y = orig_y_j;
+
+                    // j couldn't move — try shifting i instead (down then up).
+                    let orig_y_i = all_label_refs[i].y;
+
+                    all_label_refs[i].y = orig_y_i + shift;
+                    if !collides_at(&all_label_refs, i, j) {
+                        any_shifted = true;
+                        continue;
+                    }
+                    all_label_refs[i].y = orig_y_i - shift;
+                    if !collides_at(&all_label_refs, i, j) {
+                        any_shifted = true;
+                        continue;
+                    }
+                    all_label_refs[i].y = orig_y_i;
                 }
             }
             if !any_shifted {
