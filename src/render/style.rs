@@ -235,11 +235,6 @@ pub fn css() -> &'static str {
 /* Arrowhead fills are set directly on marker <path> elements via fill attr.
    CSS vars inside <marker> have spotty cross-browser support. */
 
-/* Edge label knockout background — masks the edge line behind labels */
-.obgraph-label-bg {
-  fill: var(--obg-domain-bg);
-}
-
 /* Edge operation labels */
 .obgraph-anchor-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;

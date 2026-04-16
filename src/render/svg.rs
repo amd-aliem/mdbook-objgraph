@@ -206,13 +206,15 @@ fn write_edge_path(
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
         // Knockout background rect — visually breaks the edge line behind the label.
-        // Uses LABEL_OVERFLOW_PAD / 2 per side to ensure the rect covers the
-        // full rendered text even when the character-width estimate is low.
+        // Uses LABEL_OVERFLOW_PAD per side to ensure the rect fully covers the
+        // rendered text (the char-width estimate can undersize significantly).
+        // Fill is set inline because CSS variables may not resolve in all
+        // embedding contexts (e.g. mdbook).
         let (bx, by, bw, bh) = lbl.bounding_box();
-        let pad = crate::layout::LABEL_OVERFLOW_PAD / 2.0;
+        let pad = crate::layout::LABEL_OVERFLOW_PAD;
         writeln!(
             out,
-            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}"/>"##,
+            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" fill="white"/>"##,
             x = bx - pad, y = by - 1.0, w = bw + 2.0 * pad, h = bh + 2.0
         ).unwrap();
         writeln!(
