@@ -216,12 +216,35 @@ fn write_edge_label(
 ) {
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
-        // Knockout background rect — visually breaks the edge line behind the label.
-        // Uses LABEL_OVERFLOW_PAD per side to ensure the rect fully covers the
-        // rendered text (the char-width estimate can undersize significantly).
-        // Fill is set inline because CSS variables may not resolve in all
-        // embedding contexts (e.g. mdbook).
-        let (bx, by, bw, bh) = lbl.bounding_box();
+
+        // Shift the label horizontally so its nearest bounding-box edge
+        // sits right at the dot on the edge path.  This makes the label
+        // visually attach to its arrow line.
+        let (left_x, right_x) = lbl.bounding_x();
+        let (render_x, dot_pos) = if let Some((probe_nx, _, _)) =
+            nearest_point_on_segments(lbl.x, lbl.y, &ep.segments)
+        {
+            let facing_edge = probe_nx < lbl.x;
+            let label_edge_x = if facing_edge { left_x } else { right_x };
+            if let Some((nx, ny, _)) =
+                nearest_point_on_segments(label_edge_x, lbl.y, &ep.segments)
+            {
+                // Shift: move label so its facing edge aligns with nx.
+                (lbl.x + (nx - label_edge_x), Some((nx, ny)))
+            } else {
+                (lbl.x, None)
+            }
+        } else {
+            (lbl.x, None)
+        };
+
+        // Recompute bounding box for the shifted position.
+        let mut shifted = lbl.clone();
+        shifted.x = render_x;
+        let (bx, by, bw, bh) = shifted.bounding_box();
+
+        // Knockout background rect — visually breaks the edge line behind
+        // the label.
         let pad = crate::layout::LABEL_OVERFLOW_PAD;
         writeln!(
             out,
@@ -232,33 +255,28 @@ fn write_edge_label(
             out,
             r##"        <text class="{cls}-label" x="{x}" y="{y}" fill="{fill}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,
             cls = class_prefix,
-            x = lbl.x, y = lbl.y, fill = label_fill, anchor = lbl.anchor, text = escape_xml(&lbl.text)
+            x = render_x, y = lbl.y, fill = label_fill, anchor = lbl.anchor, text = escape_xml(&lbl.text)
         ).unwrap();
 
-        // Leader line: draw a subtle connector from the label edge to the
-        // nearest point on the edge path, making it clear which label belongs
-        // to which arrow.  Only drawn when the distance exceeds a threshold.
-        //
-        // The anchor point is placed at the left or right edge of the label
-        // bounding box (whichever side faces the edge) so the dot visually
-        // sits at the label boundary rather than its center.
-        let (left_x, right_x) = lbl.bounding_x();
-        if let Some((probe_nx, _probe_ny, _)) = nearest_point_on_segments(lbl.x, lbl.y, &ep.segments) {
-            let label_anchor_x = if probe_nx < lbl.x { left_x } else { right_x };
-            if let Some((nx, ny, dist)) = nearest_point_on_segments(label_anchor_x, lbl.y, &ep.segments)
-                && dist > LEADER_MIN_DISTANCE
-            {
+        // Dot on the edge path + leader line from the label edge.
+        // The label edge is now at nx (after the shift), so the leader
+        // line is purely vertical (connecting label y to the edge point y).
+        if let Some((nx, ny)) = dot_pos {
+            let (shifted_left, shifted_right) = shifted.bounding_x();
+            let label_anchor_x = if nx <= render_x { shifted_left } else { shifted_right };
+            let dist = ((label_anchor_x - nx).powi(2) + (lbl.y - ny).powi(2)).sqrt();
+            if dist > LEADER_MIN_DISTANCE {
                 writeln!(
                     out,
                     r##"        <line class="obgraph-leader" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>"##,
                     x1 = label_anchor_x, y1 = lbl.y, x2 = nx, y2 = ny,
                 ).unwrap();
-                writeln!(
-                    out,
-                    r##"        <circle class="obgraph-leader-dot" cx="{cx}" cy="{cy}" r="1.5"/>"##,
-                    cx = nx, cy = ny,
-                ).unwrap();
             }
+            writeln!(
+                out,
+                r##"        <circle class="obgraph-leader-dot" cx="{cx}" cy="{cy}" r="1.5"/>"##,
+                cx = nx, cy = ny,
+            ).unwrap();
         }
     }
 }
