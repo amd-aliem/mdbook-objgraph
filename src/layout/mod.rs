@@ -875,10 +875,11 @@ fn pick_best_label_candidate(
         }
 
         // Side-consistency: labels should appear on the open-space side of
-        // the corridor (away from the connected nodes).  +8 is strong enough
-        // to override soft penalties (near-edge +1, distance +1-7,
-        // near-node-proximity +5) but will NOT override label-label collision
-        // (+30) or node occlusion (+50/+200).
+        // the corridor (away from the connected nodes).  +40 is above the
+        // label-label collision penalty (+30), making correct-side placement
+        // a hard preference.  The Phase 7b nudge pass resolves any label
+        // overlaps that result from this strong preference.  Still below
+        // node occlusion (+50/+200) so labels won't overlap nodes.
         if let (Some(corr_x), Some(own_segs)) = (corridor_x, edge_segments.get(own_route_idx))
             && let (Some(first_seg), Some(last_seg)) = (own_segs.first(), own_segs.last())
         {
@@ -891,7 +892,7 @@ fn pick_best_label_candidate(
                 label_cx > corr_x
             };
             if label_on_node_side {
-                score += 8;
+                score += 40;
             }
         }
 

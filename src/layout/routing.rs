@@ -2932,9 +2932,12 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
                 // (every 12.5%) prevents label clustering when many edges
                 // share the same corridor.
                 const LONG_SEGMENT_THRESHOLD: f64 = 200.0;
+                const MED_SEGMENT_THRESHOLD: f64 = 60.0;
                 let seg_len = (y_end - y_start).abs();
                 let fractions: &[f64] = if seg_len > LONG_SEGMENT_THRESHOLD {
                     &[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                } else if seg_len > MED_SEGMENT_THRESHOLD {
+                    &[0.15, 0.3, 0.45, 0.6, 0.75, 0.9]
                 } else {
                     &[0.25, 0.5, 0.75]
                 };
