@@ -789,9 +789,19 @@ fn pick_best_label_candidate(
 
         // Label-Label collisions (very high penalty — overlapping labels
         // are unreadable and worse than crossing an edge line).
+        // Also penalize vertical proximity: labels on parallel corridors at
+        // different x positions don't overlap, but clustering at similar y
+        // values looks visually cluttered.  +3 for labels within 14px
+        // vertically (roughly 1.5 label heights).
         for placed in placed_labels {
             if aabbs_overlap(&bb, placed) {
                 score += 30;
+            } else {
+                let label_cy = bb.1 + bb.3 / 2.0;
+                let placed_cy = placed.1 + placed.3 / 2.0;
+                if (label_cy - placed_cy).abs() < 14.0 {
+                    score += 3;
+                }
             }
         }
 
