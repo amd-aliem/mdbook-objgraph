@@ -217,9 +217,12 @@ fn write_edge_label(
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
 
-        // Shift the label horizontally so its nearest bounding-box edge
-        // sits right at the dot on the edge path.  This makes the label
-        // visually attach to its arrow line.
+        // Shift the label horizontally so the knockout background rect's
+        // edge-facing side aligns with the dot on the edge path.  The label
+        // text is offset by LABEL_OVERFLOW_PAD away from the edge so the
+        // background doesn't extend past the arrow and cover neighboring
+        // edge paths.
+        let pad = crate::layout::LABEL_OVERFLOW_PAD;
         let (left_x, right_x) = lbl.bounding_x();
         let (render_x, dot_pos) = if let Some((probe_nx, _, _)) =
             nearest_point_on_segments(lbl.x, lbl.y, &ep.segments)
@@ -229,8 +232,10 @@ fn write_edge_label(
             if let Some((nx, ny, _)) =
                 nearest_point_on_segments(label_edge_x, lbl.y, &ep.segments)
             {
-                // Shift: move label so its facing edge aligns with nx.
-                (lbl.x + (nx - label_edge_x), Some((nx, ny)))
+                // Shift: align the knockout rect edge (not text edge) with nx.
+                // The text edge ends up `pad` pixels away from the edge path.
+                let extra = if facing_edge { pad } else { -pad };
+                (lbl.x + (nx - label_edge_x) + extra, Some((nx, ny)))
             } else {
                 (lbl.x, None)
             }
@@ -245,7 +250,6 @@ fn write_edge_label(
 
         // Knockout background rect — visually breaks the edge line behind
         // the label.
-        let pad = crate::layout::LABEL_OVERFLOW_PAD;
         writeln!(
             out,
             r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" fill="white"/>"##,
