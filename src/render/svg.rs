@@ -246,7 +246,16 @@ fn write_edge_label(
         // Recompute bounding box for the shifted position.
         let mut shifted = lbl.clone();
         shifted.x = render_x;
+        let (bx, by, bw, bh) = shifted.bounding_box();
 
+        // Tight pill-shaped background to erase domain border lines behind
+        // the label text.  Padding is kept minimal (2px horizontal, 1px
+        // vertical) with rounded corners so the background is unobtrusive.
+        writeln!(
+            out,
+            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="white"/>"##,
+            x = bx - 2.0, y = by - 1.0, w = bw + 4.0, h = bh + 2.0
+        ).unwrap();
         writeln!(
             out,
             r##"        <text class="{cls}-label" x="{x}" y="{y}" fill="{fill}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,

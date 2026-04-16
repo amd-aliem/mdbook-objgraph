@@ -880,16 +880,20 @@ fn pick_best_label_candidate(
         // a hard preference.  The Phase 7b nudge pass resolves any label
         // overlaps that result from this strong preference.  Still below
         // node occlusion (+50/+200) so labels won't overlap nodes.
+        //
+        // Uses the candidate anchor point `cx` (not the bounding-box center)
+        // to determine which side the label is on — a "start"-anchored label
+        // at x=215 with its center past the corridor would otherwise be
+        // misclassified as being on the open-space side.
         if let (Some(corr_x), Some(own_segs)) = (corridor_x, edge_segments.get(own_route_idx))
             && let (Some(first_seg), Some(last_seg)) = (own_segs.first(), own_segs.last())
         {
             let node_avg_x = (first_seg.0 .0 + last_seg.1 .0) / 2.0;
-            let label_cx = (left + right) / 2.0;
             let nodes_left = node_avg_x < corr_x;
             let label_on_node_side = if nodes_left {
-                label_cx < corr_x
+                cx < corr_x
             } else {
-                label_cx > corr_x
+                cx > corr_x
             };
             if label_on_node_side {
                 score += 40;
