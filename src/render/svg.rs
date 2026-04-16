@@ -249,12 +249,14 @@ fn write_edge_label(
         let (bx, by, bw, bh) = shifted.bounding_box();
 
         // Tight pill-shaped background to erase domain border lines behind
-        // the label text.  Padding is kept minimal (2px horizontal, 1px
-        // vertical) with rounded corners so the background is unobtrusive.
+        // the label text.  No horizontal padding — the character-width
+        // estimate already oversizes for proportional fonts, so the
+        // bounding box alone covers the rendered text.  Minimal vertical
+        // padding (1px) with rounded corners keeps the background subtle.
         writeln!(
             out,
-            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="white"/>"##,
-            x = bx - 2.0, y = by - 1.0, w = bw + 4.0, h = bh + 2.0
+            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="2" fill="white"/>"##,
+            x = bx, y = by - 1.0, w = bw, h = bh + 2.0
         ).unwrap();
         writeln!(
             out,
