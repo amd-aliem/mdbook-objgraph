@@ -244,6 +244,9 @@ pub struct EdgePath {
     pub svg_path: String,
     /// Optional operation label and its rendering position.
     pub label: Option<EdgeLabel>,
+    /// Line segments from the edge route, stored as `[(start, end), ...]`
+    /// for leader-line rendering (connecting labels to their edge).
+    pub segments: Vec<((f64, f64), (f64, f64))>,
 }
 
 #[derive(Debug, Clone)]
@@ -1058,6 +1061,7 @@ pub fn layout(graph: &Graph) -> Result<LayoutResult, crate::ObgraphError> {
             edge_id: route.edge_id,
             svg_path,
             label,
+            segments: edge_segments[route_idx].clone(),
         };
 
         match edge {

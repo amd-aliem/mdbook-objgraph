@@ -235,6 +235,11 @@ pub fn css() -> &'static str {
 /* Arrowhead fills are set directly on marker <path> elements via fill attr.
    CSS vars inside <marker> have spotty cross-browser support. */
 
+/* Edge label knockout background */
+.obgraph-label-bg {
+  fill: var(--obg-node-bg);
+}
+
 /* Edge operation labels */
 .obgraph-anchor-label {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -246,6 +251,19 @@ pub fn css() -> &'static str {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 6px;
   fill: #60a5fa;
+}
+
+/* Leader lines — subtle connectors from edge labels to their edge paths */
+.obgraph-leader {
+  stroke: var(--obg-text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 2,2;
+  opacity: 0.5;
+}
+
+.obgraph-leader-dot {
+  fill: var(--obg-text-muted);
+  opacity: 0.5;
 }
 "#
 }

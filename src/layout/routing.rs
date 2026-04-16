@@ -2993,10 +2993,14 @@ pub fn route_to_edge_path(route: &Route, label_text: Option<String>, font_size: 
         let (x, y, anchor) = route_label_position(route);
         EdgeLabel { text, x, y, anchor, font_size }
     });
+    let segments: Vec<_> = route.segments.iter()
+        .map(|seg| (seg.start(), seg.end()))
+        .collect();
     EdgePath {
         edge_id: route.edge_id,
         svg_path: route_to_svg_path(route),
         label,
+        segments,
     }
 }
 

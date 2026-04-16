@@ -130,6 +130,49 @@ fn write_domains(out: &mut String, layout: &LayoutResult) {
 }
 
 // ---------------------------------------------------------------------------
+// Leader-line geometry helpers
+// ---------------------------------------------------------------------------
+
+/// Compute the closest point on a line segment to a given point.
+///
+/// Returns `(closest_x, closest_y)` on the segment `(ax,ay)-(bx,by)`.
+fn nearest_point_on_segment(
+    px: f64, py: f64,
+    ax: f64, ay: f64,
+    bx: f64, by: f64,
+) -> (f64, f64) {
+    let dx = bx - ax;
+    let dy = by - ay;
+    let len_sq = dx * dx + dy * dy;
+    if len_sq < 1e-12 {
+        return (ax, ay);
+    }
+    let t = ((px - ax) * dx + (py - ay) * dy) / len_sq;
+    let t = t.clamp(0.0, 1.0);
+    (ax + t * dx, ay + t * dy)
+}
+
+/// Find the nearest point on any of the given edge segments to a point.
+///
+/// Returns `Some((nearest_x, nearest_y, distance))` or `None` if segments is empty.
+#[allow(clippy::type_complexity)]
+fn nearest_point_on_segments(
+    px: f64, py: f64,
+    segments: &[((f64, f64), (f64, f64))],
+) -> Option<(f64, f64, f64)> {
+    segments.iter()
+        .map(|&((ax, ay), (bx, by))| {
+            let (cx, cy) = nearest_point_on_segment(px, py, ax, ay, bx, by);
+            let d = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
+            (cx, cy, d)
+        })
+        .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal))
+}
+
+/// Minimum distance from a label center to an edge before drawing a leader line.
+const LEADER_MIN_DISTANCE: f64 = 3.0;
+
+// ---------------------------------------------------------------------------
 // Edge path rendering helper
 // ---------------------------------------------------------------------------
 
@@ -162,12 +205,38 @@ fn write_edge_path(
     .unwrap();
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
+        // Knockout background rect — visually breaks the edge line behind the label.
+        let (bx, by, bw, bh) = lbl.bounding_box();
+        let pad = 2.0;
+        writeln!(
+            out,
+            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="2"/>"##,
+            x = bx - pad, y = by, w = bw + 2.0 * pad, h = bh
+        ).unwrap();
         writeln!(
             out,
             r##"        <text class="{cls}-label" x="{x}" y="{y}" fill="{fill}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,
             cls = class_prefix,
             x = lbl.x, y = lbl.y, fill = label_fill, anchor = lbl.anchor, text = escape_xml(&lbl.text)
         ).unwrap();
+
+        // Leader line: draw a subtle connector from the label center to the
+        // nearest point on the edge path, making it clear which label belongs
+        // to which arrow.  Only drawn when the distance exceeds a threshold.
+        if let Some((nx, ny, dist)) = nearest_point_on_segments(lbl.x, lbl.y, &ep.segments)
+            && dist > LEADER_MIN_DISTANCE
+        {
+            writeln!(
+                out,
+                r##"        <line class="obgraph-leader" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>"##,
+                x1 = lbl.x, y1 = lbl.y, x2 = nx, y2 = ny,
+            ).unwrap();
+            writeln!(
+                out,
+                r##"        <circle class="obgraph-leader-dot" cx="{cx}" cy="{cy}" r="1.5"/>"##,
+                cx = nx, cy = ny,
+            ).unwrap();
+        }
     }
 }
 
@@ -800,6 +869,7 @@ mod tests {
                 edge_id: EdgeId(0),
                 svg_path: "M 70,48 L 70,100".to_string(),
                 label: None,
+                segments: vec![],
             }],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
@@ -894,6 +964,7 @@ mod tests {
                 edge_id: EdgeId(0),
                 svg_path: "M 100,50 L 200,150".to_string(),
                 label: None,
+                segments: vec![],
             },
             stub_paths: vec![StubPath {
                 edge_id: EdgeId(0),
@@ -1254,6 +1325,7 @@ mod tests {
                 edge_id: EdgeId(0),
                 svg_path: "M 70,48 L 70,100".to_string(),
                 label: None,
+                segments: vec![],
             }],
             intra_domain_constraints: vec![],
             cross_domain_constraints: vec![],
@@ -1347,6 +1419,7 @@ mod tests {
                 edge_id: EdgeId(0),
                 svg_path: "M 120,46 L 200,46".to_string(),
                 label: None,
+                segments: vec![],
             }],
             cross_domain_constraints: vec![],
             property_order: PropertyOrder::from_graph(&graph),
