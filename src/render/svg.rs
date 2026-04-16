@@ -246,15 +246,7 @@ fn write_edge_label(
         // Recompute bounding box for the shifted position.
         let mut shifted = lbl.clone();
         shifted.x = render_x;
-        let (bx, by, bw, bh) = shifted.bounding_box();
 
-        // Knockout background rect — visually breaks the edge line behind
-        // the label.
-        writeln!(
-            out,
-            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" fill="white"/>"##,
-            x = bx - pad, y = by - 1.0, w = bw + 2.0 * pad, h = bh + 2.0
-        ).unwrap();
         writeln!(
             out,
             r##"        <text class="{cls}-label" x="{x}" y="{y}" fill="{fill}" text-anchor="{anchor}" dominant-baseline="central">{text}</text>"##,

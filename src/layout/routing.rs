@@ -2927,22 +2927,18 @@ pub fn route_label_candidates(route: &Route) -> Vec<(f64, f64, &'static str)> {
                     (*x - off, "end", *x + off, "start")
                 };
 
-                // Generate candidates at regular intervals along the vertical
-                // segment, on both sides. For long segments, finer spacing
-                // (every 12.5%) prevents label clustering when many edges
-                // share the same corridor.
-                const LONG_SEGMENT_THRESHOLD: f64 = 200.0;
-                const MED_SEGMENT_THRESHOLD: f64 = 60.0;
+                // Generate candidates at fixed pixel intervals along the
+                // vertical segment, on both sides.  A 12px step spreads
+                // labels evenly regardless of segment length, with a 10%
+                // inset from each end to keep labels clear of corners.
+                const STEP: f64 = 12.0;
                 let seg_len = (y_end - y_start).abs();
-                let fractions: &[f64] = if seg_len > LONG_SEGMENT_THRESHOLD {
-                    &[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
-                } else if seg_len > MED_SEGMENT_THRESHOLD {
-                    &[0.15, 0.3, 0.45, 0.6, 0.75, 0.9]
-                } else {
-                    &[0.25, 0.5, 0.75]
-                };
-                for &frac in fractions {
-                    let y_pos = y_start + (y_end - y_start) * frac;
+                let margin = seg_len * 0.1;
+                let usable = seg_len - 2.0 * margin;
+                let steps = ((usable / STEP).floor() as usize).max(2);
+                for s in 0..=steps {
+                    let frac = margin + usable * (s as f64 / steps as f64);
+                    let y_pos = y_start + frac.copysign(*y_end - *y_start);
                     // Open-space (outward) side first so it wins score ties.
                     candidates.push((out_x, y_pos, out_anchor));
                     candidates.push((in_x, y_pos, in_anchor));
