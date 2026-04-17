@@ -186,6 +186,8 @@ fn write_edge_path_only(
     valid: bool,
     class_prefix: &str,
     marker_prefix: &str,
+    participants: &str,
+    props: &str,
 ) {
     let (class, marker) = if valid {
         (class_prefix.to_string(), format!("{marker_prefix}-valid"))
@@ -194,10 +196,12 @@ fn write_edge_path_only(
     };
     writeln!(
         out,
-        r#"        <path class="{class}" d="{d}" data-edge="{id}" marker-end="url(#{marker})"/>"#,
+        r#"        <path class="{class}" d="{d}" data-edge="{id}" data-participants="{p}" data-props="{props}" marker-end="url(#{marker})"/>"#,
         class = class,
         d = ep.svg_path,
         id = ep.edge_id.0,
+        p = participants,
+        props = props,
         marker = marker,
     )
     .unwrap();
@@ -213,9 +217,21 @@ fn write_edge_label(
     valid: bool,
     class_prefix: &str,
     valid_color: &str,
+    participants: &str,
+    props: &str,
 ) {
     if let Some(lbl) = &ep.label {
         let label_fill = if valid { valid_color } else { "#ef4444" };
+
+        // Open wrapper group for interactive label toggling.
+        writeln!(
+            out,
+            r#"        <g class="obgraph-edge-label" data-edge="{id}" data-participants="{p}" data-props="{props}">"#,
+            id = ep.edge_id.0,
+            p = participants,
+            props = props,
+        )
+        .unwrap();
 
         // Shift the label horizontally so the knockout background rect's
         // edge-facing side aligns with the dot on the edge path.  The label
@@ -285,6 +301,9 @@ fn write_edge_label(
                 cx = nx, cy = ny,
             ).unwrap();
         }
+
+        // Close wrapper group.
+        writeln!(out, r#"        </g>"#).unwrap();
     }
 }
 
@@ -321,7 +340,10 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     writeln!(out, r#"      <g class="obgraph-anchors">"#).unwrap();
     for ep in &layout.anchors {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_path_only(out, ep, valid, "obgraph-anchor", "arrow-anchor");
+        let (src, dst) = graph.edge_node_ids(ep.edge_id);
+        let parts = participants_attr(&[src, dst]);
+        let props = props_attr(ep.edge_id, graph);
+        write_edge_path_only(out, ep, valid, "obgraph-anchor", "arrow-anchor", &parts, &props);
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
@@ -329,7 +351,10 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     writeln!(out, r#"      <g class="obgraph-constraints-intra">"#).unwrap();
     for ep in &layout.intra_domain_constraints {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_path_only(out, ep, valid, "obgraph-constraint", "arrow-constraint");
+        let (src, dst) = graph.edge_node_ids(ep.edge_id);
+        let parts = participants_attr(&[src, dst]);
+        let props = props_attr(ep.edge_id, graph);
+        write_edge_path_only(out, ep, valid, "obgraph-constraint", "arrow-constraint", &parts, &props);
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
@@ -394,7 +419,10 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     writeln!(out, r#"      <g class="obgraph-anchor-labels">"#).unwrap();
     for ep in &layout.anchors {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_label(out, ep, valid, "obgraph-anchor", "#22c55e");
+        let (src, dst) = graph.edge_node_ids(ep.edge_id);
+        let parts = participants_attr(&[src, dst]);
+        let props = props_attr(ep.edge_id, graph);
+        write_edge_label(out, ep, valid, "obgraph-anchor", "#22c55e", &parts, &props);
     }
     writeln!(out, r#"      </g>"#).unwrap();
 
@@ -402,7 +430,10 @@ fn write_edges(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
     writeln!(out, r#"      <g class="obgraph-constraint-labels">"#).unwrap();
     for ep in &layout.intra_domain_constraints {
         let valid = is_edge_valid(ep.edge_id, graph, state);
-        write_edge_label(out, ep, valid, "obgraph-constraint", "#60a5fa");
+        let (src, dst) = graph.edge_node_ids(ep.edge_id);
+        let parts = participants_attr(&[src, dst]);
+        let props = props_attr(ep.edge_id, graph);
+        write_edge_label(out, ep, valid, "obgraph-constraint", "#60a5fa", &parts, &props);
     }
     writeln!(out, r#"      </g>"#).unwrap();
 

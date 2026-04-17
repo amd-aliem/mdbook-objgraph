@@ -260,5 +260,17 @@ pub fn css() -> &'static str {
   fill: var(--obg-text-muted);
   opacity: 0.5;
 }
+
+/* Edge labels — hidden by default, revealed on hover/click */
+.obgraph-edge-label {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.obgraph-edge-label.obgraph-label-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
 "#
 }

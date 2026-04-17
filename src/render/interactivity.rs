@@ -9,6 +9,7 @@ pub fn js() -> &'static str {
   var selected = new Set();
   var hovered = new Set();
   var hoveredProp = null;
+  var selectedProps = new Set();
 
   function hasSelectedParticipant(el) {
     var attr = el.getAttribute('data-participants');
@@ -41,11 +42,27 @@ pub fn js() -> &'static str {
     return false;
   }
 
-  // An edge should be shown (full path visible, stub hidden) if:
-  //   (a) any participant node is selected, OR
-  //   (b) any participant node is hovered AND (no prop hover, or prop matches)
+  function hasSelectedProp(el) {
+    if (selectedProps.size === 0) return false;
+    var attr = el.getAttribute('data-props');
+    if (!attr) return false;
+    var ids = attr.split(',');
+    for (var i = 0; i < ids.length; i++) {
+      if (selectedProps.has(ids[i])) return true;
+    }
+    return false;
+  }
+
+  // An edge/label should be visible if:
+  //   (a) any participant node is selected or hovered
+  //       AND (no prop hover, or prop matches), OR
+  //   (b) any prop is in selectedProps
   function isEdgeVisible(el) {
-    if (hasSelectedParticipant(el)) return true;
+    if (hasSelectedProp(el)) return true;
+    if (hasSelectedParticipant(el)) {
+      if (hoveredProp === null) return true;
+      return matchesHoveredProp(el);
+    }
     if (!hasHoveredParticipant(el)) return false;
     if (hoveredProp === null) return true;
     return matchesHoveredProp(el);
@@ -64,6 +81,13 @@ pub fn js() -> &'static str {
         p.classList.add('obgraph-hidden');
       } else {
         p.classList.remove('obgraph-hidden');
+      }
+    });
+    svg.querySelectorAll('.obgraph-edge-label').forEach(function(g) {
+      if (isEdgeVisible(g)) {
+        g.classList.add('obgraph-label-visible');
+      } else {
+        g.classList.remove('obgraph-label-visible');
       }
     });
   }
@@ -91,6 +115,18 @@ pub fn js() -> &'static str {
         hoveredProp = null;
         updateEdges();
       });
+      prop.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var pid = prop.getAttribute('data-prop');
+        if (selectedProps.has(pid)) {
+          selectedProps.delete(pid);
+          prop.removeAttribute('data-prop-selected');
+        } else {
+          selectedProps.add(pid);
+          prop.setAttribute('data-prop-selected', 'true');
+        }
+        updateEdges();
+      });
     });
     node.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -107,8 +143,12 @@ pub fn js() -> &'static str {
 
   svg.addEventListener('click', function() {
     selected.clear();
+    selectedProps.clear();
     svg.querySelectorAll('.obgraph-node').forEach(function(node) {
       node.setAttribute('data-selected', 'false');
+    });
+    svg.querySelectorAll('[data-prop-selected]').forEach(function(el) {
+      el.removeAttribute('data-prop-selected');
     });
     updateEdges();
   });
