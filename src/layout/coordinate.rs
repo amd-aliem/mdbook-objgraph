@@ -724,6 +724,7 @@ mod tests {
                 parent,
                 child,
                 operation: None,
+            failed: false,
             });
             node_children.entry(parent).or_default().push(eid);
             node_parent.insert(child, eid);

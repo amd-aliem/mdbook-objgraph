@@ -322,6 +322,7 @@ fn write_edge_label(
 fn is_edge_valid(edge_id: EdgeId, graph: &Graph, state: &StateResult) -> bool {
     let edge = &graph.edges[edge_id.index()];
     match edge {
+        Edge::Anchor { failed: true, .. } => false,
         Edge::Anchor { parent, .. } => {
             state.is_node_anchored(*parent) && state.is_node_verified(graph, *parent)
         }
@@ -938,6 +939,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, properties, edges, vec![]);
         let trust_state = state::propagate(&graph);
@@ -1405,6 +1407,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, vec![], edges, vec![]);
         let trust_state = state::propagate(&graph);

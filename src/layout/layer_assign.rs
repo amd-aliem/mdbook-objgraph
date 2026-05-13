@@ -1177,6 +1177,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, vec![], edges, vec![]);
 
@@ -1199,11 +1200,13 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges, vec![]);
@@ -1242,16 +1245,19 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: Some("signs".into()),
+                failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: Some("authenticates".into()),
+                failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(0),
                 child: NodeId(3),
                 operation: Some("publishes".into()),
+                failed: false,
             },
             Edge::Constraint {
                 source_prop: PropId(4), // revocation.status
@@ -1315,16 +1321,19 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(0),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(3),
                 operation: None,
+            failed: false,
             },
             // c -> d must be a Constraint since d already has a parent (b).
             Edge::Constraint {

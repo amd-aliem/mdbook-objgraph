@@ -232,6 +232,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, vec![], edges);
 
@@ -265,6 +266,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, vec![], edges);
 
@@ -317,11 +319,13 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
             Edge::Constraint {
                 source_prop: PropId(0),
@@ -404,11 +408,13 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges);

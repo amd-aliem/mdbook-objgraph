@@ -277,6 +277,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
             child: child_id,
             parent: parent_id,
             operation: ast_anchor.operation.clone(),
+            failed: ast_anchor.failed,
         });
 
         // node_children: parent -> [edge_ids for each child anchor]
@@ -538,11 +539,13 @@ mod tests {
                     child_ident: "cert".to_string(),
                     parent_ident: "ca".to_string(),
                     operation: Some("sign".to_string()),
+                    failed: false,
                 },
                 AstAnchor {
                     child_ident: "tls".to_string(),
                     parent_ident: "cert".to_string(),
                     operation: None,
+                    failed: false,
                 },
             ],
             constraints: vec![
@@ -653,6 +656,7 @@ mod tests {
                 child,
                 parent,
                 operation,
+                ..
             } => {
                 assert_eq!(*child, NodeId(1));  // cert
                 assert_eq!(*parent, NodeId(0)); // ca
@@ -666,6 +670,7 @@ mod tests {
                 child,
                 parent,
                 operation,
+                ..
             } => {
                 assert_eq!(*child, NodeId(2));  // tls
                 assert_eq!(*parent, NodeId(1)); // cert
@@ -811,6 +816,7 @@ mod tests {
                 child_ident: "known".to_string(),
                 parent_ident: "unknown".to_string(), // "unknown" doesn't exist
                 operation: None,
+                failed: false,
             }],
             constraints: vec![],
         };
@@ -833,6 +839,7 @@ mod tests {
                 child_ident: "b".to_string(),
                 parent_ident: "a".to_string(),
                 operation: None,
+                failed: false,
             }],
             constraints: vec![AstConstraint {
                 dest_node: "b".to_string(),
@@ -862,11 +869,13 @@ mod tests {
                     child_ident: "child".to_string(),
                     parent_ident: "p1".to_string(),
                     operation: None,
+                    failed: false,
                 },
                 AstAnchor {
                     child_ident: "child".to_string(),
                     parent_ident: "p2".to_string(),
                     operation: None,
+                    failed: false,
                 },
             ],
             constraints: vec![],

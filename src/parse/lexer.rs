@@ -21,6 +21,8 @@ pub enum Token {
     AtConstrained,
     /// `<-` link arrow
     LeftArrow,
+    /// `</-` broken link arrow (failed verification)
+    BrokenLeftArrow,
     /// `<=` constraint operator
     LeftAngleEq,
     /// `::`
@@ -238,6 +240,22 @@ impl<'a> Lexer<'a> {
                 '<' => {
                     self.advance(); // consume '<'
                     match self.peek() {
+                        Some('/') => {
+                            self.advance(); // consume '/'
+                            match self.peek() {
+                                Some('-') => {
+                                    self.advance();
+                                    tokens.push(Spanned { token: Token::BrokenLeftArrow, line: tok_line, col: tok_col });
+                                }
+                                _ => {
+                                    return Err(crate::ObgraphError::Parse {
+                                        line: tok_line,
+                                        col: tok_col,
+                                        message: "expected `</-`".to_string(),
+                                    });
+                                }
+                            }
+                        }
                         Some('-') => {
                             self.advance();
                             tokens.push(Spanned { token: Token::LeftArrow, line: tok_line, col: tok_col });
@@ -250,7 +268,7 @@ impl<'a> Lexer<'a> {
                             return Err(crate::ObgraphError::Parse {
                                 line: tok_line,
                                 col: tok_col,
-                                message: "expected `<-` or `<=`".to_string(),
+                                message: "expected `<-`, `</-`, or `<=`".to_string(),
                             });
                         }
                     }
@@ -430,6 +448,12 @@ mod tests {
     fn test_left_arrow() {
         let toks = tokenize("<-");
         assert_eq!(toks[0], Token::LeftArrow);
+    }
+
+    #[test]
+    fn test_broken_left_arrow() {
+        let toks = tokenize("</-");
+        assert_eq!(toks[0], Token::BrokenLeftArrow);
     }
 
     #[test]

@@ -341,6 +341,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         });
         g.node_parent.insert(NodeId(1), EdgeId(0));
         g.node_children
@@ -425,6 +426,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         });
         g.node_parent.insert(NodeId(1), EdgeId(0));
 
@@ -476,6 +478,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(99),
             operation: None,
+        failed: false,
         });
 
         let err = validate(&g).unwrap_err();
@@ -493,6 +496,7 @@ mod tests {
             parent: NodeId(99),
             child: NodeId(0),
             operation: None,
+        failed: false,
         });
 
         let err = validate(&g).unwrap_err();
@@ -676,11 +680,13 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(2),
             operation: None,
+        failed: false,
         });
         g.edges.push(Edge::Anchor {
             parent: NodeId(1),
             child: NodeId(2),
             operation: None,
+        failed: false,
         });
         // node_parent records only one (simulating the HashMap constraint),
         // but both edges exist — our checker should catch the duplication.
@@ -759,12 +765,14 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         });
         // n1 -> n0 (anchor, cycle!)
         g.edges.push(Edge::Anchor {
             parent: NodeId(1),
             child: NodeId(0),
             operation: None,
+        failed: false,
         });
         // Both nodes appear as children.
         g.node_parent.insert(NodeId(0), EdgeId(1));
@@ -804,11 +812,13 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         });
         g.edges.push(Edge::Anchor {
             parent: NodeId(1),
             child: NodeId(2),
             operation: None,
+        failed: false,
         });
         g.node_parent.insert(NodeId(1), EdgeId(0));
         g.node_parent.insert(NodeId(2), EdgeId(1));

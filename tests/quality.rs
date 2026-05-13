@@ -208,7 +208,7 @@ fn sev_snp_realistic_quality_summary() {
 fn describe_edge(graph: &model::types::Graph, eid: model::types::EdgeId) -> String {
     use model::types::Edge;
     match &graph.edges[eid.index()] {
-        Edge::Anchor { parent, child, operation } => {
+        Edge::Anchor { parent, child, operation, .. } => {
             format!("A{}: {} <- {} ({})", eid.index(),
                 graph.nodes[child.index()].label(),
                 graph.nodes[parent.index()].label(),

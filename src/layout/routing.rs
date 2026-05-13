@@ -3061,6 +3061,7 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             // Edge 1: Constraint prop_a -> prop_b
             Edge::Constraint {

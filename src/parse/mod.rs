@@ -414,7 +414,10 @@ impl Parser {
     // in as `child_ident`.
     // -----------------------------------------------------------------------
     fn parse_anchor(&mut self, child_ident: String) -> Result<AstAnchor, ObgraphError> {
-        self.expect(&Token::LeftArrow)?;
+        let failed = match self.peek() {
+            Token::BrokenLeftArrow => { self.advance(); true }
+            _ => { self.expect(&Token::LeftArrow)?; false }
+        };
         let parent_ident = self.expect_ident()?;
 
         let operation = if *self.peek() == Token::Colon {
@@ -425,7 +428,7 @@ impl Parser {
         };
 
         self.expect_newline_or_eof()?;
-        Ok(AstAnchor { child_ident, parent_ident, operation })
+        Ok(AstAnchor { child_ident, parent_ident, operation, failed })
     }
 
     // -----------------------------------------------------------------------
@@ -490,7 +493,7 @@ impl Parser {
                     let first_ident = self.expect_ident()?;
 
                     match self.peek() {
-                        Token::LeftArrow => {
+                        Token::LeftArrow | Token::BrokenLeftArrow => {
                             graph.anchors.push(self.parse_anchor(first_ident)?);
                         }
                         Token::ColonColon => {
@@ -506,7 +509,7 @@ impl Parser {
                                 line,
                                 col,
                                 message: format!(
-                                    "expected `<-` (anchor) or `::` (constraint) after identifier `{first_ident}`, found `{:?}`",
+                                    "expected `<-`/`</-` (anchor) or `::` (constraint) after identifier `{first_ident}`, found `{:?}`",
                                     self.peek()
                                 ),
                             });
@@ -711,6 +714,27 @@ mod tests {
         let g = p("cert <- ca : sign\n");
         let l = &g.anchors[0];
         assert_eq!(l.operation, Some("sign".into()));
+        assert!(!l.failed);
+    }
+
+    #[test]
+    fn test_broken_link() {
+        let g = p("cert </- ca\n");
+        assert_eq!(g.anchors.len(), 1);
+        let l = &g.anchors[0];
+        assert_eq!(l.child_ident, "cert");
+        assert_eq!(l.parent_ident, "ca");
+        assert!(l.failed);
+    }
+
+    #[test]
+    fn test_broken_link_with_operation() {
+        let g = p("Report </- VCEK : ecdsa_p384\n");
+        let l = &g.anchors[0];
+        assert_eq!(l.child_ident, "Report");
+        assert_eq!(l.parent_ident, "VCEK");
+        assert_eq!(l.operation, Some("ecdsa_p384".into()));
+        assert!(l.failed);
     }
 
     // -----------------------------------------------------------------------

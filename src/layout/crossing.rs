@@ -2292,6 +2292,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, vec![], edges);
 
@@ -2326,11 +2327,13 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(3),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges);
@@ -2502,21 +2505,25 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(3),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(2),
                 child: NodeId(5),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(3),
                 child: NodeId(4),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges);
@@ -2589,16 +2596,19 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(3),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(2),
                 child: NodeId(4),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges);
@@ -2733,11 +2743,13 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(2),
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: NodeId(1),
                 child: NodeId(3),
                 operation: None,
+            failed: false,
             },
         ];
         let graph = make_graph(nodes, vec![], edges);
@@ -2818,6 +2830,7 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             // Same-node constraints: src_a(p2) -> dest_a(p0)
             Edge::Constraint {
@@ -2892,6 +2905,7 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Constraint {
                 source_prop: PropId(0),
@@ -2978,6 +2992,7 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             // Crossing constraints: p0 -> p3 and p1 -> p2
             Edge::Constraint {
@@ -3056,9 +3071,9 @@ mod tests {
         ];
         // Edges defined in scrambled order: to TgtC, TgtA, TgtB
         let edges = vec![
-            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None },
-            Edge::Anchor { parent: NodeId(0), child: NodeId(2), operation: None },
-            Edge::Anchor { parent: NodeId(0), child: NodeId(3), operation: None },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None, failed: false },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(2), operation: None, failed: false },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(3), operation: None, failed: false },
             Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(3), operation: None }, // edge 3 -> TgtC
             Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(1), operation: None }, // edge 4 -> TgtA
             Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(2), operation: None }, // edge 5 -> TgtB
@@ -3119,7 +3134,7 @@ mod tests {
             make_prop(3, 0, "p3"),
         ];
         let edges = vec![
-            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None },
+            Edge::Anchor { parent: NodeId(0), child: NodeId(1), operation: None, failed: false },
             // p0 -> p3 (scrambled: target further down)
             Edge::Constraint { source_prop: PropId(0), dest_prop: PropId(3), operation: None },
             // p0 -> p1 (target closer up)

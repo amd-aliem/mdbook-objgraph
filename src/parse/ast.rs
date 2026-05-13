@@ -43,11 +43,15 @@ pub struct AstProperty {
 }
 
 /// An anchor between two nodes: `child <- parent [: operation]`.
+///
+/// When `failed` is true the anchor was parsed from `</-` (broken link),
+/// indicating a failed verification step.
 #[derive(Debug, Clone)]
 pub struct AstAnchor {
     pub child_ident: String,
     pub parent_ident: String,
     pub operation: Option<String>,
+    pub failed: bool,
 }
 
 /// The source side of a constraint: either a direct property reference or a

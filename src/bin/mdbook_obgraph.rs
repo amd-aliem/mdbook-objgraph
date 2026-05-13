@@ -1158,6 +1158,7 @@ fn edge_description(
             parent,
             child,
             operation,
+            ..
         } => {
             format!(
                 "{} \u{2190} {} : {}",

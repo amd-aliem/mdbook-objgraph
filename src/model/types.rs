@@ -196,10 +196,15 @@ pub struct Domain {
 #[derive(Debug, Clone)]
 pub enum Edge {
     /// Hierarchical anchor: parent -> child. Anchoring flows parent to child.
+    ///
+    /// When `failed` is true the edge represents a broken verification link
+    /// (`</-`). The node is still connected for graph structure purposes but
+    /// trust does NOT propagate through a failed anchor.
     Anchor {
         child: NodeId,
         parent: NodeId,
         operation: Option<String>,
+        failed: bool,
     },
 
     /// Property constraint: source_prop -> dest_prop. Trust flows source to dest.

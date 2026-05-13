@@ -158,9 +158,12 @@ pub fn propagate(graph: &Graph) -> StateResult {
                 continue;
             }
 
-            // Anchor children.
+            // Anchor children (skip failed/broken links).
             for &eid in graph.children_of(n) {
-                if let Edge::Anchor { child: m, .. } = &graph.edges[eid.index()] {
+                if let Edge::Anchor { child: m, failed, .. } = &graph.edges[eid.index()] {
+                    if *failed {
+                        continue;
+                    }
                     let child_entry = node_anchored.entry(*m).or_insert(false);
                     if !*child_entry {
                         *child_entry = true;
@@ -346,6 +349,7 @@ mod tests {
                 parent: NodeId(0),
                 child: NodeId(1),
                 operation: None,
+            failed: false,
             },
             Edge::Constraint {
                 dest_prop: PropId(1),
@@ -386,6 +390,7 @@ mod tests {
             parent: NodeId(0),
             child: NodeId(1),
             operation: None,
+        failed: false,
         }];
         let graph = make_graph(nodes, properties, edges);
 
@@ -510,11 +515,13 @@ mod tests {
                 parent: ca_id,
                 child: cert_id,
                 operation: None,
+            failed: false,
             },
             Edge::Anchor {
                 parent: cert_id,
                 child: tls_id,
                 operation: None,
+            failed: false,
             },
             // Constraints
             Edge::Constraint {
