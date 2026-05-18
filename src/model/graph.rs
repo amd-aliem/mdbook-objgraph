@@ -110,6 +110,8 @@ impl Builder {
         value: Option<String>,
         critical: bool,
         constrained: bool,
+        pass: bool,
+        fail: bool,
     ) -> Result<PropId, ObgraphError> {
         let key = (node_ident.to_string(), name.to_string());
         if self.prop_lookup.contains_key(&key) {
@@ -125,6 +127,8 @@ impl Builder {
             value,
             critical,
             constrained,
+            pass,
+            fail,
         };
         self.properties.push(prop);
         self.prop_lookup.insert(key, id);
@@ -147,6 +151,8 @@ impl Builder {
             value: None,
             critical: false,
             constrained: false,
+            pass: false,
+            fail: false,
         };
         self.properties.push(prop);
         self.nodes[node_id.index()].properties.push(id);
@@ -237,7 +243,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
             member_ids.push(node_id);
 
             for ast_prop in &ast_node.properties {
-                b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained)?;
+                b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained, ast_prop.pass, ast_prop.fail)?;
             }
         }
 
@@ -262,7 +268,7 @@ pub fn build(ast: AstGraph) -> Result<Graph, ObgraphError> {
         )?;
 
         for ast_prop in &ast_node.properties {
-            b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained)?;
+            b.alloc_property(node_id, &ast_node.ident, &ast_prop.name, ast_prop.value.clone(), ast_prop.critical, ast_prop.constrained, ast_prop.pass, ast_prop.fail)?;
         }
     }
 
@@ -427,6 +433,8 @@ mod tests {
                     value: None,
                     critical,
                     constrained,
+                    pass: false,
+                    fail: false,
                 })
                 .collect(),
         }

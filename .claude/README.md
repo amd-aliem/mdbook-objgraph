@@ -17,6 +17,7 @@ Skills and agents for creating and debugging trust graph visualizations. They ar
 | `objgraph-research` | Research trust systems, verify against sources |
 | `objgraph-create` | Create .obgraph files from specs |
 | `objgraph-review` | Review and debug .obgraph files |
+| `test-create` | Test the objgraph-create agent with built-in scenarios |
 
 ## Usage
 

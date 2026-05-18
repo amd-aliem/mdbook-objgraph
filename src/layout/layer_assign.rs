@@ -1161,7 +1161,7 @@ mod tests {
             node: NodeId(node),
             name: name.to_string(),
             value: None,
-            critical: true, constrained: false,
+            critical: true, constrained: false, pass: false, fail: false,
         }
     }
 

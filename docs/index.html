@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Graph Studies</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .intro {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 4px;
+        }
+
+        .intro h2 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .section-header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .models {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .model-card {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .model-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+            transform: translateY(-4px);
+        }
+
+        .model-card.recommended {
+            border-color: #28a745;
+            background: #f1f9f3;
+        }
+
+        .model-card.deprecated {
+            border-color: #dc3545;
+            background: #fef3f3;
+        }
+
+        .model-card.hardware {
+            border-color: #ff6b6b;
+            background: #fff5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .badge.recommended {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge.deprecated {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.enterprise {
+            background: #007bff;
+            color: white;
+        }
+
+        .badge.slsa {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .badge.hardware {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .model-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .model-card .meta {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        .model-card p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        .model-card .stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .model-card .stats span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .model-card .stats span::before {
+            content: "●";
+            color: #667eea;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .comparison {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .comparison h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .comparison table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .comparison th,
+        .comparison td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .comparison th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .comparison tr:last-child td {
+            border-bottom: none;
+        }
+
+        .check {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .cross {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        footer {
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Trust Graph Studies</h1>
+            <p>Visualizing cryptographic trust chains across security domains</p>
+        </header>
+
+        <div class="content">
+            <div class="intro">
+                <h2>Overview</h2>
+                <p>
+                    This collection visualizes cryptographic trust models across different security domains,
+                    showing how various systems establish and verify trust through certificates, signatures,
+                    and attestations.
+                </p>
+            </div>
+
+            
+            <div class="section">
+                <div class="section-header">
+                    <h2>Tpm</h2>
+                    <p>Trust graphs for tpm</p>
+                </div>
+
+                <div class="models">
+                    
+                <div class="model-card hardware">
+                    <span class="badge hardware">Hardware Root</span>
+                    <h3>dTPM</h3>
+                    <div class="meta">Discrete TPM • Hardware Security • FIPS 140</div>
+                    <div class="stats">
+                        <span>13 nodes</span>
+                        <span>5 domains</span>
+                    </div>
+                    <p>Physical TPM chip with complete hardware isolation from CPU. Demonstrates strongest hardware security with dedicated security processor and tamper-resistant enclosure.</p><p><strong>Key Features:</strong> Hardware isolation, FIPS 140 Level 3 capable, immune to CPU attacks, dedicated security processor</p><p><strong>Best for:</strong> Enterprise systems, high-security requirements, compliance (FIPS/Common Criteria), long-lifecycle systems</p>
+                    <a href="tpm/dtpm.html" class="btn">View Trust Graph →</a>
+                </div>
+                <div class="model-card hardware">
+                    <span class="badge hardware">Firmware TEE</span>
+                    <h3>fTPM</h3>
+                    <div class="meta">Firmware TPM • AMD PSP • Intel PTT • CPU TEE</div>
+                    <div class="stats">
+                        <span>14 nodes</span>
+                        <span>6 domains</span>
+                    </div>
+                    <p>Firmware-based TPM running in CPU Trusted Execution Environment (AMD PSP or Intel PTT). Demonstrates integrated security with shared CPU attack surface.</p><p><strong>Key Features:</strong> Lower cost, integrated in CPU, TEE isolation, vulnerable to CPU-level attacks (faulTPM)</p><p><strong>Best for:</strong> Consumer devices, systems without discrete TPM chip, cost-sensitive deployments</p>
+                    <a href="tpm/ftpm.html" class="btn">View Trust Graph →</a>
+                </div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>
+                Generated using <strong>mdbook-obgraph</strong> trust graph visualization engine
+            </p>
+            <p style="margin-top: 0.5rem; opacity: 0.8;">
+                For more information, see the
+                <a href="https://theupdateframework.github.io/specification/latest/">TUF Specification</a>,
+                <a href="https://docs.sigstore.dev/">Sigstore Documentation</a>,
+                <a href="https://github.com/in-toto/attestation">in-toto Attestation Framework</a>,
+                <a href="https://notaryproject.dev/">Notary Project</a>, and
+                <a href="https://www.amd.com/en/developer/sev.html">AMD SEV Documentation</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

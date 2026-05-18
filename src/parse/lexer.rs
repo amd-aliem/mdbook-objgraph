@@ -19,6 +19,10 @@ pub enum Token {
     AtCritical,
     /// `@constrained`
     AtConstrained,
+    /// `@pass` — evaluation passed
+    AtPass,
+    /// `@fail` — evaluation failed
+    AtFail,
     /// `<-` link arrow
     LeftArrow,
     /// `</-` broken link arrow (failed verification)
@@ -160,6 +164,8 @@ impl<'a> Lexer<'a> {
             "selected" => Ok(Token::AtSelected),
             "critical" => Ok(Token::AtCritical),
             "constrained" => Ok(Token::AtConstrained),
+            "pass" => Ok(Token::AtPass),
+            "fail" => Ok(Token::AtFail),
             other => Err(crate::ObgraphError::Parse {
                 line,
                 col,

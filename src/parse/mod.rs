@@ -231,6 +231,8 @@ impl Parser {
 
         let mut critical = false;
         let mut constrained = false;
+        let mut pass = false;
+        let mut fail = false;
         loop {
             match self.peek() {
                 Token::AtCritical => {
@@ -241,10 +243,18 @@ impl Parser {
                     self.advance();
                     constrained = true;
                 }
+                Token::AtPass => {
+                    self.advance();
+                    pass = true;
+                }
+                Token::AtFail => {
+                    self.advance();
+                    fail = true;
+                }
                 _ => break,
             }
         }
-        Ok(AstProperty { name, value, critical, constrained })
+        Ok(AstProperty { name, value, critical, constrained, pass, fail })
     }
 
     // -----------------------------------------------------------------------

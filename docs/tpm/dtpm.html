@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>dTPM</title>
+<style>
+body { margin: 20px; background: #f5f5f5; font-family: system-ui, sans-serif; }
+h1 { color: #333; }
+.description { max-width: 800px; margin-bottom: 20px; color: #555; line-height: 1.6; }
+
+/* Source viewer styles */
+.view-controls {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.toggle-source-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.toggle-source-btn:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.content-wrapper {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+.content-wrapper.split-view .obgraph-container {
+    flex: 1;
+    max-width: 50%;
+}
+.source-panel {
+    display: none;
+    flex: 1;
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 20px;
+    overflow: auto;
+    max-height: 90vh;
+    position: sticky;
+    top: 20px;
+}
+.content-wrapper.split-view .source-panel {
+    display: block;
+}
+.source-panel pre {
+    margin: 0;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.source-header {
+    color: #4ec9b0;
+    font-weight: bold;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3e3e42;
+}
+</style>
+</head><body>
+<h1>Discrete TPM Trust Model</h1>
+<div class="description">Physical TPM chip with complete hardware isolation from CPU. Demonstrates strongest hardware security with dedicated security processor and tamper-resistant enclosure.</div>
+<div class="view-controls">
+    <button class="toggle-source-btn" onclick="toggleSource()">Show .obgraph Source</button>
+</div>
+<div class="content-wrapper" id="contentWrapper">
+<div class="obgraph-container">
+  <svg xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 888.6999999999999 872"
+       width="888.6999999999999" height="872"
+       class="obgraph">
+    <style>
+.obgraph {
+  /* Base */
+  --obg-bg: #f8fafc;
+  --obg-text: #334155;
+  --obg-text-muted: #64748b;
+  --obg-border: #e2e8f0;
+  --obg-border-strong: #cbd5e1;
+
+  /* Node */
+  --obg-node-bg: white;
+  --obg-header-bg: #f1f5f9;
+  --obg-header-text: #334155;
+
+  /* State indicators (problems-only) */
+  --obg-anchor-valid: #22c55e;
+  --obg-constraint-valid: #60a5fa;
+  --obg-problem: #ef4444;
+
+  /* Selection */
+  --obg-select-ring: #475569;
+
+  /* Domains */
+  --obg-domain-bg: white;
+  --obg-domain-border: #cbd5e1;
+  --obg-domain-label: #64748b;
+
+  background: #ffffff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--obg-text);
+  overflow: visible;
+}
+
+/* Domain background and label */
+.obgraph-domain-bg {
+  fill: var(--obg-domain-bg);
+  stroke: var(--obg-domain-border);
+  stroke-width: 2px;
+}
+
+.obgraph-domain-label {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--obg-domain-label);
+  paint-order: stroke;
+  stroke: white;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* Anchor edges — green, 2px, solid when valid */
+.obgraph-anchor {
+  fill: none;
+  stroke: var(--obg-anchor-valid);
+  stroke-width: 2px;
+}
+
+/* Invalid anchor edges — red dashed, 2px */
+.obgraph-anchor-invalid {
+  fill: none;
+  stroke: var(--obg-problem);
+  stroke-dasharray: 4 2;
+  stroke-width: 2px;
+}
+
+/* Intra-domain constraint — blue, 1px */
+.obgraph-constraint {
+  fill: none;
+  stroke: var(--obg-constraint-valid);
+  stroke-width: 1px;
+}
+
+/* Invalid constraint edges — red dashed, 1px */
+.obgraph-constraint-invalid {
+  fill: none;
+  stroke: var(--obg-problem);
+  stroke-dasharray: 4 2;
+  stroke-width: 1px;
+}
+
+/* Cross-domain constraint full path — hidden by default */
+.obgraph-constraint-full {
+  fill: none;
+  stroke: var(--obg-constraint-valid);
+  stroke-width: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.obgraph-constraint-full.obgraph-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Cross-domain constraint stub — short dotted line near destination port */
+.obgraph-constraint-stub {
+  fill: none;
+  stroke: var(--obg-constraint-valid);
+  stroke-width: 1px;
+  transition: opacity 0.15s ease;
+}
+
+/* Dotted stub pattern */
+.obgraph-constraint-stub.obgraph-stub-dotted {
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+}
+
+/* Invalid stubs — red dashed (same dash pattern as other invalid edges) */
+.obgraph-constraint-stub.obgraph-constraint-stub-invalid {
+  stroke: var(--obg-problem);
+  stroke-dasharray: 4 2;
+}
+
+.obgraph-constraint-stub.obgraph-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Node background rect — white with light border and shadow */
+.obgraph-node-bg {
+  fill: var(--obg-node-bg);
+  stroke: none;
+  filter: url(#shadow);
+}
+
+/* Node header background (rounded-top rect) */
+.obgraph-node-header {
+  fill: var(--obg-header-bg);
+}
+
+/* Node header fill (square-bottom rect overlapping lower half of header) */
+.obgraph-node-header-fill {
+  fill: var(--obg-header-bg);
+}
+
+/* Node border: 1px default, 2px dark when selected */
+.obgraph-node-border {
+  stroke: var(--obg-border);
+  stroke-width: 1px;
+}
+
+.obgraph-node[data-selected="true"] .obgraph-node-border {
+  stroke: var(--obg-select-ring);
+  stroke-width: 2px;
+}
+
+/* Node title text */
+.obgraph-node-title {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--obg-header-text);
+}
+
+/* Separator line between title and properties */
+.obgraph-node-sep {
+  stroke: var(--obg-border);
+  stroke-width: 1px;
+}
+
+/* Property row background */
+.obgraph-prop-bg {
+  fill: transparent;
+}
+
+/* Property name text — monospace */
+.obgraph-prop-name {
+  fill: var(--obg-text-muted);
+  font-size: 10px;
+  font-family: Menlo, Consolas, monospace;
+}
+
+/* Trusted property name */
+.obgraph-prop[data-trust="trusted"] .obgraph-prop-name {
+  fill: var(--obg-text);
+}
+
+/* Always-trusted / constrained property name */
+.obgraph-prop[data-trust="always"] .obgraph-prop-name,
+.obgraph-prop[data-trust="constrained"] .obgraph-prop-name {
+  fill: var(--obg-text);
+}
+
+/* Critical property — bold */
+.obgraph-prop[data-critical="true"] .obgraph-prop-name {
+  font-weight: 700;
+}
+
+/* Property row divider */
+.obgraph-prop-divider {
+  stroke: var(--obg-border);
+  stroke-width: 0.5px;
+}
+
+/* Problem indicator dots */
+.obgraph-node-dot, .obgraph-prop-dot {
+  fill: var(--obg-problem);
+}
+
+/* Derivation pill */
+.obgraph-pill-bg {
+  fill: var(--obg-node-bg);
+  stroke: var(--obg-border);
+  stroke-width: 1px;
+  filter: url(#shadow);
+}
+
+.obgraph-pill[data-selected="true"] .obgraph-pill-bg {
+  stroke: var(--obg-select-ring);
+  stroke-width: 2.5px;
+  filter: url(#shadow) drop-shadow(0 0 3px var(--obg-select-ring));
+}
+
+.obgraph-pill-label {
+  font-family: Menlo, Consolas, monospace;
+  font-size: 10px;
+  fill: var(--obg-text);
+}
+
+/* Arrowhead fills are set directly on marker <path> elements via fill attr.
+   CSS vars inside <marker> have spotty cross-browser support. */
+
+/* Edge operation labels */
+.obgraph-anchor-label {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 8px;
+  fill: #22c55e;
+}
+
+.obgraph-constraint-label {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 6px;
+  fill: #60a5fa;
+}
+</style>
+    <defs>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#00000018"/></filter>
+      <marker id="arrow-anchor-valid" viewBox="0 0 6 6" refX="0" refY="3" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#22c55e"/></marker>
+      <marker id="arrow-anchor-invalid" viewBox="0 0 6 6" refX="0" refY="3" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker>
+      <marker id="arrow-constraint-valid" viewBox="0 0 6 6" refX="0" refY="3" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#60a5fa"/></marker>
+      <marker id="arrow-constraint-invalid" viewBox="0 0 6 6" refX="0" refY="3" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker>
+    </defs>
+    <g transform="translate(108.4, 20)">
+    <g class="obgraph-domains">
+      <g class="obgraph-domain" data-domain="0">
+        <rect class="obgraph-domain-bg" x="20" y="0" width="260.5" height="312" rx="10"/>
+        <text class="obgraph-domain-label" x="32" y="16" text-anchor="start" dominant-baseline="central">Hardware Security</text>
+      </g>
+      <g class="obgraph-domain" data-domain="1">
+        <rect class="obgraph-domain-bg" x="356.5" y="280" width="244.5" height="232" rx="10"/>
+        <text class="obgraph-domain-label" x="368.5" y="296" text-anchor="start" dominant-baseline="central">Cryptographic PKI</text>
+      </g>
+      <g class="obgraph-domain" data-domain="2">
+        <rect class="obgraph-domain-bg" x="356.5" y="0" width="244.5" height="252" rx="10"/>
+        <text class="obgraph-domain-label" x="368.5" y="16" text-anchor="start" dominant-baseline="central">Platform Firmware</text>
+      </g>
+      <g class="obgraph-domain" data-domain="3">
+        <rect class="obgraph-domain-bg" x="20" y="340" width="260.5" height="232" rx="10"/>
+        <text class="obgraph-domain-label" x="32" y="356" text-anchor="start" dominant-baseline="central">BitLocker Service</text>
+      </g>
+      <g class="obgraph-domain" data-domain="4">
+        <rect class="obgraph-domain-bg" x="20" y="600" width="260.5" height="232" rx="10"/>
+        <text class="obgraph-domain-label" x="32" y="616" text-anchor="start" dominant-baseline="central">Windows Hello Service</text>
+      </g>
+    </g>
+    <g class="obgraph-edges">
+      <g class="obgraph-anchors">
+        <path class="obgraph-anchor" d="M478.75,124 L478.75,146" data-edge="2" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="474.75" y="135" fill="#22c55e" text-anchor="end" dominant-baseline="central">Secure Boot verification</text>
+        <path class="obgraph-anchor" d="M150.25,284 L150.25,38" data-edge="0" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="176.8" y="28" fill="#22c55e" text-anchor="end" dominant-baseline="central">Manufacture and provision TPM chip</text>
+        <path class="obgraph-anchor" d="M150.25,164 L150.25,366" data-edge="3" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="146.25" y="315.5" fill="#22c55e" text-anchor="end" dominant-baseline="central">Seal VMK to PCR policy</text>
+        <path class="obgraph-anchor" d="M150.25,164 L150.25,626" data-edge="5" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="146.25" y="296" fill="#22c55e" text-anchor="end" dominant-baseline="central">Wrap NGC keys with SRK</text>
+        <path class="obgraph-anchor" d="M478.75,384 L478.75,406" data-edge="1" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="474.75" y="395" fill="#22c55e" text-anchor="end" dominant-baseline="central">Issue EK certificate</text>
+        <path class="obgraph-anchor" d="M150.25,444 L150.25,466" data-edge="4" marker-end="url(#arrow-anchor-valid)"/>
+        <text class="obgraph-anchor-label" x="146.25" y="455" fill="#22c55e" text-anchor="end" dominant-baseline="central">Decrypt with VMK</text>
+        <path class="obgraph-anchor-invalid" d="M150.25,704 L150.25,726" data-edge="6" marker-end="url(#arrow-anchor-invalid)"/>
+        <text class="obgraph-anchor-label" x="154.25" y="715" fill="#ef4444" text-anchor="start" dominant-baseline="central">Unwrap credential key</text>
+      </g>
+      <g class="obgraph-constraints-intra">
+        <path class="obgraph-constraint" d="M565,94 L587,94 L587,214 L571,214" data-edge="13" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="591" y="124" fill="#60a5fa" text-anchor="start" dominant-baseline="central">Verify bootloader signature</text>
+        <path class="obgraph-constraint" d="M565,114 L583,114 L583,194 L571,194" data-edge="14" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="524.75" y="28" fill="#60a5fa" text-anchor="middle" dominant-baseline="central">Boot configuration measured by CRTM</text>
+        <path class="obgraph-constraint" d="M64,250 L42,250 L42,94 L58,94" data-edge="10" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="54.6" y="28" fill="#60a5fa" text-anchor="middle" dominant-baseline="central">Burn EK during manufacturing</text>
+        <path class="obgraph-constraint" d="M64,258 L46,258 L46,110 L58,110" data-edge="7" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="60" y="106" fill="#60a5fa" text-anchor="end" dominant-baseline="central">SRK provisioned during manufacturing</text>
+        <path class="obgraph-constraint" d="M64,230 L50,230 L50,134 L58,134" data-edge="8" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="54" y="182" fill="#60a5fa" text-anchor="start" dominant-baseline="central">Hardware RNG certified</text>
+        <path class="obgraph-constraint" d="M64,238 L54,238 L54,154 L58,154" data-edge="9" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="85.8" y="28" fill="#60a5fa" text-anchor="middle" dominant-baseline="central">Tamper resistance built during manufacturing</text>
+        <path class="obgraph-constraint" d="M565,374 L583,374 L583,474 L571,474" data-edge="12" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="579" y="399" fill="#60a5fa" text-anchor="end" dominant-baseline="central">Sign EK certificate</text>
+        <path class="obgraph-constraint" d="M64,438 L42,438 L42,514 L58,514" data-edge="21" marker-end="url(#arrow-constraint-valid)"/>
+        <text class="obgraph-constraint-label" x="53" y="368" fill="#60a5fa" text-anchor="middle" dominant-baseline="central">Decrypt volume with VMK</text>
+        <path class="obgraph-constraint-invalid" d="M64,694 L42,694 L42,774 L58,774" data-edge="23" marker-end="url(#arrow-constraint-invalid)"/>
+        <text class="obgraph-constraint-label" x="46" y="714" fill="#ef4444" text-anchor="start" dominant-baseline="central">Unwrap credential key</text>
+      </g>
+      <g class="obgraph-constraints-cross">
+        <path class="obgraph-constraint-full" d="M392.5,114 L296.5,114 L296.5,70 L242.5,70" data-edge="18" data-participants="4,1" data-props="14,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M392.5,194 L300.5,194 L300.5,78 L242.5,78" data-edge="19" data-participants="5,1" data-props="16,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M64,118 L4,118 L4,414 L58,414" data-edge="17" data-participants="1,6" data-props="4,18" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M236.5,94 L304.5,94 L304.5,454 L386.5,454" data-edge="11" data-participants="1,3" data-props="3,10" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M64,70 L-4,70 L-4,430 L58,430" data-edge="15" data-participants="1,6" data-props="5,17" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M64,78 L0,78 L0,534 L58,534" data-edge="20" data-participants="1,7" data-props="4,20" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M236.5,110 L312.5,110 L312.5,674 L242.5,674" data-edge="16" data-participants="1,8" data-props="5,22" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-full" d="M236.5,118 L308.5,118 L308.5,794 L242.5,794" data-edge="22" data-participants="1,9" data-props="5,24" marker-end="url(#arrow-constraint-valid)"/>
+      </g>
+      <g class="obgraph-constraint-stubs">
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M252.5,70 L242.5,70" data-edge="18" data-participants="4,1" data-props="14,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M252.5,78 L242.5,78" data-edge="19" data-participants="5,1" data-props="16,4" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M48,414 L58,414" data-edge="17" data-participants="1,6" data-props="4,18" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M376.5,454 L386.5,454" data-edge="11" data-participants="1,3" data-props="3,10" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M48,430 L58,430" data-edge="15" data-participants="1,6" data-props="5,17" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M48,534 L58,534" data-edge="20" data-participants="1,7" data-props="4,20" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M252.5,674 L242.5,674" data-edge="16" data-participants="1,8" data-props="5,22" marker-end="url(#arrow-constraint-valid)"/>
+        <path class="obgraph-constraint-stub obgraph-stub-dotted" d="M252.5,794 L242.5,794" data-edge="22" data-participants="1,9" data-props="5,24" marker-end="url(#arrow-constraint-valid)"/>
+      </g>
+    </g>
+    <g class="obgraph-nodes">
+      <g class="obgraph-node" data-node="0" data-selected="false">
+        <rect class="obgraph-node-bg" x="64" y="192" width="172.5" height="92" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="192" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="208" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="208" dominant-baseline="central" data-trust="trusted">TPM Manufacturer Root</text>
+        <line class="obgraph-node-sep" x1="64" y1="224" x2="236.5" y2="224"/>
+        <g class="obgraph-prop" data-prop="2" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="64" y="224" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="234" dominant-baseline="central">manufacturing_process</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="244" x2="236.5" y2="244"/>
+        <g class="obgraph-prop" data-prop="1" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="64" y="244" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="254" dominant-baseline="central">ek_provisioning_key</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="264" x2="236.5" y2="264"/>
+        <g class="obgraph-prop" data-prop="0" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="64" y="264" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="274" dominant-baseline="central">root_certificate</text>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="193" width="170.5" height="90" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="1" data-selected="false">
+        <rect class="obgraph-node-bg" x="64" y="32" width="172.5" height="132" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="32" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="48" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="48" dominant-baseline="central" data-trust="trusted">Discrete TPM Chip (dTPM)</text>
+        <line class="obgraph-node-sep" x1="64" y1="64" x2="236.5" y2="64"/>
+        <g class="obgraph-prop" data-prop="4" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="64" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="74" dominant-baseline="central">pcr_registers</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="84" x2="236.5" y2="84"/>
+        <g class="obgraph-prop" data-prop="3" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="84" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="94" dominant-baseline="central">endorsement_key</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="104" x2="236.5" y2="104"/>
+        <g class="obgraph-prop" data-prop="5" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="104" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="114" dominant-baseline="central">storage_root_key</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="124" x2="236.5" y2="124"/>
+        <g class="obgraph-prop" data-prop="6" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="124" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="134" dominant-baseline="central">random_generator</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="144" x2="236.5" y2="144"/>
+        <g class="obgraph-prop" data-prop="7" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="144" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="154" dominant-baseline="central">tamper_resistance</text>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="33" width="170.5" height="130" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="2" data-selected="false">
+        <rect class="obgraph-node-bg" x="392.5" y="312" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="392.5" y="312" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="392.5" y="328" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="404.5" y="328" dominant-baseline="central" data-trust="trusted">TPM Manufacturer CA</text>
+        <line class="obgraph-node-sep" x1="392.5" y1="344" x2="565" y2="344"/>
+        <g class="obgraph-prop" data-prop="8" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="392.5" y="344" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="354" dominant-baseline="central">root_certificate</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="392.5" y1="364" x2="565" y2="364"/>
+        <g class="obgraph-prop" data-prop="9" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="392.5" y="364" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="374" dominant-baseline="central">ek_signing_key</text>
+        </g>
+        <rect class="obgraph-node-border" x="393.5" y="313" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="3" data-selected="false">
+        <rect class="obgraph-node-bg" x="392.5" y="412" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="392.5" y="412" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="392.5" y="428" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="404.5" y="428" dominant-baseline="central" data-trust="trusted">Endorsement Key Certificate</text>
+        <line class="obgraph-node-sep" x1="392.5" y1="444" x2="565" y2="444"/>
+        <g class="obgraph-prop" data-prop="10" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="392.5" y="444" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="454" dominant-baseline="central">public_key</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="392.5" y1="464" x2="565" y2="464"/>
+        <g class="obgraph-prop" data-prop="11" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="392.5" y="464" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="474" dominant-baseline="central">ca_signature</text>
+        </g>
+        <rect class="obgraph-node-border" x="393.5" y="413" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="4" data-selected="false">
+        <rect class="obgraph-node-bg" x="392.5" y="32" width="172.5" height="92" rx="8"/>
+        <rect class="obgraph-node-header" x="392.5" y="32" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="392.5" y="48" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="404.5" y="48" dominant-baseline="central" data-trust="trusted">UEFI Firmware (CRTM)</text>
+        <line class="obgraph-node-sep" x1="392.5" y1="64" x2="565" y2="64"/>
+        <g class="obgraph-prop" data-prop="12" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="392.5" y="64" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="74" dominant-baseline="central">platform_key</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="392.5" y1="84" x2="565" y2="84"/>
+        <g class="obgraph-prop" data-prop="13" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="392.5" y="84" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="94" dominant-baseline="central">secure_boot_db</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="392.5" y1="104" x2="565" y2="104"/>
+        <g class="obgraph-prop" data-prop="14" data-trust="always" data-critical="false">
+          <rect class="obgraph-prop-bg" x="392.5" y="104" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="114" dominant-baseline="central">crtm_code</text>
+        </g>
+        <rect class="obgraph-node-border" x="393.5" y="33" width="170.5" height="90" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="5" data-selected="false">
+        <rect class="obgraph-node-bg" x="392.5" y="152" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="392.5" y="152" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="392.5" y="168" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="404.5" y="168" dominant-baseline="central" data-trust="trusted">Windows Bootloader</text>
+        <line class="obgraph-node-sep" x1="392.5" y1="184" x2="565" y2="184"/>
+        <g class="obgraph-prop" data-prop="16" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="392.5" y="184" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="194" dominant-baseline="central">boot_configuration</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="392.5" y1="204" x2="565" y2="204"/>
+        <g class="obgraph-prop" data-prop="15" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="392.5" y="204" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="404.5" y="214" dominant-baseline="central">bootloader_signature</text>
+        </g>
+        <rect class="obgraph-node-border" x="393.5" y="153" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="6" data-selected="false">
+        <rect class="obgraph-node-bg" x="64" y="372" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="372" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="388" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="388" dominant-baseline="central" data-trust="trusted">Volume Master Key (VMK)</text>
+        <line class="obgraph-node-sep" x1="64" y1="404" x2="236.5" y2="404"/>
+        <g class="obgraph-prop" data-prop="18" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="404" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="414" dominant-baseline="central">pcr_policy</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="424" x2="236.5" y2="424"/>
+        <g class="obgraph-prop" data-prop="17" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="424" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="434" dominant-baseline="central">sealed_blob</text>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="373" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="7" data-selected="true">
+        <rect class="obgraph-node-bg" x="64" y="472" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="472" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="488" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="488" dominant-baseline="central" data-trust="trusted">BitLocker Encrypted Volume</text>
+        <line class="obgraph-node-sep" x1="64" y1="504" x2="236.5" y2="504"/>
+        <g class="obgraph-prop" data-prop="19" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="504" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="514" dominant-baseline="central">volume_encryption</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="524" x2="236.5" y2="524"/>
+        <g class="obgraph-prop" data-prop="20" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="524" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="534" dominant-baseline="central">boot_integrity</text>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="473" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="8" data-selected="false">
+        <rect class="obgraph-node-bg" x="64" y="632" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="632" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="648" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="648" dominant-baseline="central" data-trust="untrusted">NGC Container Key</text>
+        <line class="obgraph-node-sep" x1="64" y1="664" x2="236.5" y2="664"/>
+        <g class="obgraph-prop" data-prop="22" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="664" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="674" dominant-baseline="central">key_wrapping</text>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="684" x2="236.5" y2="684"/>
+        <g class="obgraph-prop" data-prop="21" data-trust="untrusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="684" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="694" dominant-baseline="central">container_key</text>
+          <circle class="obgraph-prop-dot" cx="222.5" cy="694" r="2"/>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="633" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+      <g class="obgraph-node" data-node="9" data-selected="true">
+        <rect class="obgraph-node-bg" x="64" y="732" width="172.5" height="72" rx="8"/>
+        <rect class="obgraph-node-header" x="64" y="732" width="172.5" height="32" rx="8"/>
+        <rect class="obgraph-node-header-fill" x="64" y="748" width="172.5" height="16"/>
+        <text class="obgraph-node-title" x="76" y="748" dominant-baseline="central" data-trust="untrusted">Windows Hello Credential</text>
+        <circle class="obgraph-node-dot" cx="222.5" cy="748" r="2"/>
+        <line class="obgraph-node-sep" x1="64" y1="764" x2="236.5" y2="764"/>
+        <g class="obgraph-prop" data-prop="23" data-trust="untrusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="764" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="774" dominant-baseline="central">private_key</text>
+          <circle class="obgraph-prop-dot" cx="222.5" cy="774" r="2"/>
+        </g>
+        <line class="obgraph-prop-divider" x1="64" y1="784" x2="236.5" y2="784"/>
+        <g class="obgraph-prop" data-prop="24" data-trust="trusted" data-critical="true">
+          <rect class="obgraph-prop-bg" x="64" y="784" width="172.5" height="20"/>
+          <text class="obgraph-prop-name" x="76" y="794" dominant-baseline="central">pin_authorization</text>
+        </g>
+        <rect class="obgraph-node-border" x="65" y="733" width="170.5" height="70" rx="7" fill="none"/>
+      </g>
+    </g>
+    </g>
+    <script>(function() {
+  var svg = document.currentScript.closest('.obgraph');
+  if (!svg) return;
+
+  var selected = new Set();
+  var hovered = new Set();
+  var hoveredProp = null;
+
+  function hasSelectedParticipant(el) {
+    var attr = el.getAttribute('data-participants');
+    if (!attr) return false;
+    var ids = attr.split(',');
+    for (var i = 0; i < ids.length; i++) {
+      if (selected.has(ids[i])) return true;
+    }
+    return false;
+  }
+
+  function hasHoveredParticipant(el) {
+    var attr = el.getAttribute('data-participants');
+    if (!attr) return false;
+    var ids = attr.split(',');
+    for (var i = 0; i < ids.length; i++) {
+      if (hovered.has(ids[i])) return true;
+    }
+    return false;
+  }
+
+  function matchesHoveredProp(el) {
+    if (!hoveredProp) return false;
+    var attr = el.getAttribute('data-props');
+    if (!attr) return false;
+    var ids = attr.split(',');
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i] === hoveredProp) return true;
+    }
+    return false;
+  }
+
+  // An edge should be shown (full path visible, stub hidden) if:
+  //   (a) any participant node is selected, OR
+  //   (b) any participant node is hovered AND (no prop hover, or prop matches)
+  function isEdgeVisible(el) {
+    if (hasSelectedParticipant(el)) return true;
+    if (!hasHoveredParticipant(el)) return false;
+    if (hoveredProp === null) return true;
+    return matchesHoveredProp(el);
+  }
+
+  function updateEdges() {
+    svg.querySelectorAll('.obgraph-constraint-full').forEach(function(p) {
+      if (isEdgeVisible(p)) {
+        p.classList.add('obgraph-active');
+      } else {
+        p.classList.remove('obgraph-active');
+      }
+    });
+    svg.querySelectorAll('.obgraph-constraint-stub').forEach(function(p) {
+      if (isEdgeVisible(p)) {
+        p.classList.add('obgraph-hidden');
+      } else {
+        p.classList.remove('obgraph-hidden');
+      }
+    });
+  }
+
+  svg.querySelectorAll('.obgraph-node').forEach(function(node) {
+    var id = node.getAttribute('data-node');
+    if (node.getAttribute('data-selected') === 'true') {
+      selected.add(id);
+    }
+    node.addEventListener('mouseenter', function() {
+      hovered.add(id);
+      updateEdges();
+    });
+    node.addEventListener('mouseleave', function() {
+      hovered.delete(id);
+      hoveredProp = null;
+      updateEdges();
+    });
+    node.querySelectorAll('.obgraph-prop').forEach(function(prop) {
+      prop.addEventListener('mouseenter', function() {
+        hoveredProp = prop.getAttribute('data-prop');
+        updateEdges();
+      });
+      prop.addEventListener('mouseleave', function() {
+        hoveredProp = null;
+        updateEdges();
+      });
+    });
+    node.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (selected.has(id)) {
+        selected.delete(id);
+        node.setAttribute('data-selected', 'false');
+      } else {
+        selected.add(id);
+        node.setAttribute('data-selected', 'true');
+      }
+      updateEdges();
+    });
+  });
+
+  svg.addEventListener('click', function() {
+    selected.clear();
+    svg.querySelectorAll('.obgraph-node').forEach(function(node) {
+      node.setAttribute('data-selected', 'false');
+    });
+    updateEdges();
+  });
+
+  updateEdges();
+})();</script>
+  </svg>
+</div>
+
+<div class="source-panel" id="sourcePanel">
+    <div class="source-header">.obgraph source file</div>
+    <pre># Discrete TPM Trust Model (dTPM)
+# Trust visualization for discrete TPM hardware chip showing complete physical
+# isolation from CPU and main system. Trust chain from TPM manufacturer through
+# dedicated security chip to BitLocker and Windows Hello.
+#
+#@ title: dTPM
+#@ heading: Discrete TPM Trust Model
+#@ badge: Hardware Root
+#@ badge_type: hardware
+#@ card_style: hardware
+#@ meta: Discrete TPM • Hardware Security • FIPS 140
+#@ stats: {&quot;nodes&quot;: 13, &quot;domains&quot;: 5}
+#@ description: Physical TPM chip with complete hardware isolation from CPU. Demonstrates strongest hardware security with dedicated security processor and tamper-resistant enclosure.
+#@ key_features: Hardware isolation, FIPS 140 Level 3 capable, immune to CPU attacks, dedicated security processor
+#@ best_for: Enterprise systems, high-security requirements, compliance (FIPS/Common Criteria), long-lifecycle systems
+#
+# Trust Model:
+#   - Hardware Security: Dedicated TPM chip physically isolated from CPU
+#   - Platform Firmware: UEFI Secure Boot and measured boot
+#   - Cryptographic: Manufacturer CA certifies TPM identity
+#   - BitLocker: Disk encryption sealed to platform state
+#   - Windows Hello: Biometric/PIN credential protection
+#
+# Key Difference from fTPM:
+#   dTPM is a physically separate chip with complete electrical isolation from
+#   the CPU, memory, and OS. Immune to CPU-level attacks. FIPS 140 Level 3
+#   certification capable. Higher cost ($1-5+ per unit) but maximum assurance.
+#
+# References:
+#   - https://www.bvm.co.uk/faq/ftpm-vs-dtpm-understanding-trusted-platform-modules-in-industrial-computing/
+#   - https://premioinc.com/blogs/blog/differences-between-ftpm-vs-dtpm
+#   - https://trustedcomputinggroup.org/resource/tpm-library-specification/
+#   - https://learn.microsoft.com/en-us/windows/security/hardware-security/tpm/how-windows-uses-the-tpm
+
+# === DOMAIN: Hardware Security ===
+domain &quot;Hardware Security&quot; {
+  # TPM manufacturer root
+  node TPMManufacturer &quot;TPM Manufacturer Root&quot; @anchored {
+    root_certificate        @constrained
+    ek_provisioning_key     @constrained
+    manufacturing_process   @constrained
+  }
+
+  # Discrete TPM hardware chip
+  node dTPM &quot;Discrete TPM Chip (dTPM)&quot; {
+    endorsement_key         @critical
+    pcr_registers           @critical
+    storage_root_key        @critical
+    random_generator        @critical
+    tamper_resistance       @critical
+  }
+}
+
+# === DOMAIN: Cryptographic PKI ===
+domain &quot;Cryptographic PKI&quot; {
+  # Manufacturer CA for dTPM identity
+  node ManufacturerCA &quot;TPM Manufacturer CA&quot; @anchored {
+    root_certificate    @constrained
+    ek_signing_key      @constrained
+  }
+
+  # EK certificate for dTPM
+  node EKCert &quot;Endorsement Key Certificate&quot; {
+    public_key          @critical
+    ca_signature        @critical
+  }
+}
+
+# === DOMAIN: Platform Firmware ===
+domain &quot;Platform Firmware&quot; {
+  # UEFI firmware with Secure Boot
+  node UEFI &quot;UEFI Firmware (CRTM)&quot; @anchored {
+    platform_key        @constrained
+    secure_boot_db      @constrained
+    crtm_code           @constrained
+  }
+
+  # Bootloader verified by Secure Boot
+  node Bootloader &quot;Windows Bootloader&quot; {
+    bootloader_signature @critical
+    boot_configuration   @critical
+  }
+}
+
+# === DOMAIN: BitLocker Service ===
+domain &quot;BitLocker Service&quot; {
+  # BitLocker Volume Master Key
+  node VMK &quot;Volume Master Key (VMK)&quot; {
+    sealed_blob         @critical
+    pcr_policy          @critical
+  }
+
+  # BitLocker encrypted volume (terminal node)
+  node EncryptedVolume &quot;BitLocker Encrypted Volume&quot; @selected {
+    volume_encryption   @critical
+    boot_integrity      @critical
+  }
+}
+
+# === DOMAIN: Windows Hello Service ===
+domain &quot;Windows Hello Service&quot; {
+  # NGC container for user credentials
+  node NGC &quot;NGC Container Key&quot; {
+    container_key       @critical
+    key_wrapping        @critical
+  }
+
+  # User credential (terminal node)
+  node UserCredential &quot;Windows Hello Credential&quot; @selected {
+    private_key         @critical
+    pin_authorization   @critical
+  }
+}
+
+# ============================================================================
+# === LINKS (Anchors - trust flow right-to-left) ===
+# ============================================================================
+
+# TPM manufacturer provisions discrete TPM chip during manufacturing
+dTPM &lt;- TPMManufacturer : &quot;Manufacture and provision TPM chip&quot;
+
+# Manufacturer CA certifies dTPM&#39;s EK
+EKCert &lt;- ManufacturerCA : &quot;Issue EK certificate&quot;
+
+# Bootloader verified and measured by UEFI
+Bootloader &lt;- UEFI : &quot;Secure Boot verification&quot;
+
+# VMK sealed by dTPM
+VMK &lt;- dTPM : &quot;Seal VMK to PCR policy&quot;
+
+# Encrypted volume protected by VMK
+EncryptedVolume &lt;- VMK : &quot;Decrypt with VMK&quot;
+
+# NGC keys wrapped by dTPM SRK
+NGC &lt;- dTPM : &quot;Wrap NGC keys with SRK&quot;
+
+# User credential protected by NGC container
+UserCredential &lt;- NGC : &quot;Unwrap credential key&quot;
+
+# ============================================================================
+# === BONDS (Within-chain constraints) ===
+# ============================================================================
+
+# dTPM&#39;s intrinsic hardware capabilities derived from manufacturing
+dTPM::storage_root_key &lt;= TPMManufacturer::ek_provisioning_key : &quot;SRK provisioned during manufacturing&quot;
+dTPM::random_generator &lt;= TPMManufacturer::manufacturing_process : &quot;Hardware RNG certified&quot;
+dTPM::tamper_resistance &lt;= TPMManufacturer::manufacturing_process : &quot;Tamper resistance built during manufacturing&quot;
+
+# dTPM&#39;s EK provisioned during manufacturing
+dTPM::endorsement_key &lt;= TPMManufacturer::ek_provisioning_key : &quot;Burn EK during manufacturing&quot;
+
+# Certificate contains dTPM&#39;s EK public component
+EKCert::public_key &lt;= dTPM::endorsement_key : &quot;Certificate contains dTPM&#39;s EK public component&quot;
+
+# EK certificate signed by manufacturer CA
+EKCert::ca_signature &lt;= ManufacturerCA::ek_signing_key : &quot;Sign EK certificate&quot;
+
+# Bootloader signature verified against Secure Boot db
+Bootloader::bootloader_signature &lt;= UEFI::secure_boot_db : &quot;Verify bootloader signature&quot;
+
+# Boot configuration measured by CRTM
+Bootloader::boot_configuration &lt;= UEFI::crtm_code : &quot;Boot configuration measured by CRTM&quot;
+
+# VMK sealed blob bound to dTPM SRK
+VMK::sealed_blob &lt;= dTPM::storage_root_key : &quot;Seal VMK with SRK&quot;
+
+# NGC container keys wrapped by dTPM SRK
+NGC::key_wrapping &lt;= dTPM::storage_root_key : &quot;Wrap NGC keys with SRK&quot;
+
+# ============================================================================
+# === BRIDGES (Cross-domain constraints) ===
+# ============================================================================
+
+# BitLocker VMK unsealing requires matching PCR values (measured boot)
+VMK::pcr_policy &lt;= dTPM::pcr_registers : &quot;Unseal only if PCRs match&quot;
+
+# UEFI measured boot extends dTPM PCRs
+dTPM::pcr_registers &lt;= UEFI::crtm_code : &quot;Measure CRTM into PCR[0]&quot;
+
+# Bootloader configuration measured into dTPM PCRs
+dTPM::pcr_registers &lt;= Bootloader::boot_configuration : &quot;Measure bootloader into PCR[7,11]&quot;
+
+# ============================================================================
+# === TERMINAL CONSTRAINTS ===
+# ============================================================================
+
+# Encrypted volume requires boot integrity verification
+EncryptedVolume::boot_integrity &lt;= dTPM::pcr_registers : &quot;Verify platform state via PCRs&quot;
+
+# Encrypted volume decryption requires unsealed VMK
+EncryptedVolume::volume_encryption &lt;= VMK::sealed_blob : &quot;Decrypt volume with VMK&quot;
+
+# User credential requires PIN/biometric authorization
+UserCredential::pin_authorization &lt;= dTPM::storage_root_key : &quot;Authorize with TPM-verified PIN&quot;
+
+# User credential private key protected by NGC wrapping
+UserCredential::private_key &lt;= NGC::container_key : &quot;Unwrap credential key&quot;
+
+# ============================================================================
+# HARDWARE ISOLATION BENEFITS (dTPM-specific)
+# ============================================================================
+#
+# dTPM Security Advantages:
+#   1. Physical isolation: Dedicated chip separate from CPU and main memory
+#   2. Immune to CPU attacks: Not vulnerable to Spectre, Meltdown, or faulTPM
+#   3. Tamper-resistant: Physical enclosure with tamper-evident/response features
+#   4. FIPS 140 Level 3: Can achieve high certification levels for compliance
+#   5. Independent operation: Unaffected by CPU firmware bugs or load
+#   6. Dedicated resources: Own processor, NV storage, RNG
+#
+# Trust Basis:
+#   dTPM trust is rooted in physical hardware manufacturing and tamper-resistant
+#   packaging. Keys are burned during manufacturing in secure facility and never
+#   leave the chip. Physical attacks require chip de-capping or sophisticated
+#   laboratory equipment.
+#
+# Use Cases:
+#   - Enterprise servers with compliance requirements (FIPS, Common Criteria)
+#   - Industrial systems in physically accessible environments
+#   - High-value targets requiring maximum assurance
+#   - Long-lifecycle systems where firmware stability is critical
+#
+# Trade-offs:
+#   - Higher cost: $1-5+ BOM cost per unit
+#   - PCB space: Requires dedicated chip and supporting components
+#   - Potential bus attacks: LPC/SPI bus can be probed (mitigated by platform security)
+#   - Cannot be added post-manufacturing (except via add-on modules)
+</pre>
+</div>
+</div>
+<script>
+function toggleSource() {
+    const wrapper = document.getElementById('contentWrapper');
+    const btn = document.querySelector('.toggle-source-btn');
+
+    if (wrapper.classList.contains('split-view')) {
+        wrapper.classList.remove('split-view');
+        btn.textContent = 'Show .obgraph Source';
+    } else {
+        wrapper.classList.add('split-view');
+        btn.textContent = 'Hide .obgraph Source';
+    }
+}
+</script>
+</body></html>

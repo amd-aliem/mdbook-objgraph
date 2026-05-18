@@ -598,15 +598,25 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
 
                 let critical_attr = if prop.critical { "true" } else { "false" };
 
+                let eval_attr = if prop.pass {
+                    Some("pass")
+                } else if prop.fail {
+                    Some("fail")
+                } else {
+                    None
+                };
+
                 let row_y = nl.y + HEADER_HEIGHT + prop_idx as f64 * ROW_HEIGHT;
                 let port_y = row_y + ROW_HEIGHT / 2.0;
 
+                let eval_str = eval_attr.map(|e| format!(r#" data-eval="{e}""#)).unwrap_or_default();
                 writeln!(
                     out,
-                    r#"        <g class="obgraph-prop" data-prop="{pid}" data-trust="{trust}" data-critical="{crit}">"#,
+                    r#"        <g class="obgraph-prop" data-prop="{pid}" data-trust="{trust}" data-critical="{crit}"{eval}>"#,
                     pid = pid.0,
                     trust = trust_attr,
-                    crit = critical_attr
+                    crit = critical_attr,
+                    eval = eval_str
                 )
                 .unwrap();
 
@@ -934,6 +944,8 @@ mod tests {
             value: None,
             critical: true,
             constrained: false,
+            pass: false,
+            fail: false,
         }];
         let edges = vec![Edge::Anchor {
             parent: NodeId(0),
@@ -1024,6 +1036,8 @@ mod tests {
                 value: None,
                 critical: false,
                 constrained: true,
+                pass: false,
+                fail: false,
             },
             Property {
                 id: PropId(1),
@@ -1032,6 +1046,8 @@ mod tests {
                 value: None,
                 critical: true,
                 constrained: false,
+                pass: false,
+                fail: false,
             },
         ];
         let edges = vec![Edge::Constraint {
@@ -1174,6 +1190,8 @@ mod tests {
             value: None,
             critical: false,
             constrained: true,
+            pass: false,
+            fail: false,
         }];
         let graph = make_graph(nodes, properties, vec![], vec![]);
         let trust_state = state::propagate(&graph);
@@ -1487,6 +1505,8 @@ mod tests {
                 value: None,
                 critical: false,
                 constrained: true,
+                pass: false,
+                fail: false,
             },
             Property {
                 id: PropId(1),
@@ -1495,6 +1515,8 @@ mod tests {
                 value: None,
                 critical: true,
                 constrained: false,
+                pass: false,
+                fail: false,
             },
         ];
         let edges = vec![Edge::Constraint {

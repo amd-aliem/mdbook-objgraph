@@ -40,6 +40,10 @@ pub struct AstProperty {
     pub critical: bool,
     /// `@constrained` — property is pre-satisfied (annotation-constrained).
     pub constrained: bool,
+    /// `@pass` — evaluation passed for this property.
+    pub pass: bool,
+    /// `@fail` — evaluation failed for this property.
+    pub fail: bool,
 }
 
 /// An anchor between two nodes: `child <- parent [: operation]`.

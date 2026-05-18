@@ -295,6 +295,8 @@ mod tests {
             value: None,
             critical,
             constrained,
+            pass: false,
+            fail: false,
         }
     }
 
@@ -504,7 +506,7 @@ mod tests {
                     name: format!("_placeholder_{}", i),
                     value: None,
                     critical: true,
-                    constrained: false,
+                    constrained: false, pass: false, fail: false,
                 })
             })
             .collect();

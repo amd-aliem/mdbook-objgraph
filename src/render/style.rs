@@ -201,6 +201,30 @@ pub fn css() -> &'static str {
   font-weight: 700;
 }
 
+/* Evaluation pass — light green background */
+.obgraph-prop[data-eval="pass"] .obgraph-prop-bg {
+  fill: #dcfce7;
+}
+.obgraph-prop[data-eval="pass"] .obgraph-prop-name {
+  fill: #166534;
+}
+.obgraph-prop[data-eval="pass"] .obgraph-prop-value {
+  fill: #166534;
+  opacity: 0.7;
+}
+
+/* Evaluation fail — light red background */
+.obgraph-prop[data-eval="fail"] .obgraph-prop-bg {
+  fill: #fee2e2;
+}
+.obgraph-prop[data-eval="fail"] .obgraph-prop-name {
+  fill: #991b1b;
+}
+.obgraph-prop[data-eval="fail"] .obgraph-prop-value {
+  fill: #991b1b;
+  opacity: 0.7;
+}
+
 /* Property row divider */
 .obgraph-prop-divider {
   stroke: var(--obg-border);
