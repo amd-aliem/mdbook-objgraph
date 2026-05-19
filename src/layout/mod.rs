@@ -58,6 +58,9 @@ pub const STUB_LENGTH: f64 = 10.0;
 pub const ARROWHEAD_SIZE: f64 = 6.0;
 /// Character width estimate for monospace text.
 pub const CHAR_WIDTH: f64 = 5.5;
+/// Maximum number of value characters to display before truncation.
+/// Longer values are shown truncated with "..." and a copy button.
+pub const MAX_VALUE_DISPLAY_LEN: usize = 24;
 /// Character width factor for proportional (sans-serif) label text.
 /// Average character width ≈ font_size × this factor.  Tuned to match
 /// common system sans-serif fonts (Inter, Segoe UI, DejaVu Sans) which
@@ -367,7 +370,12 @@ fn single_node_content_width(graph: &Graph, node_id: NodeId) -> f64 {
             let prop = &graph.properties[pid.index()];
             let base = prop.name.len();
             match &prop.value {
-                Some(v) => (base + 3 + v.len()) as f64 * CHAR_WIDTH, // " = " + value
+                Some(v) => {
+                    // Cap displayed value length for width calculation; longer
+                    // values are truncated with "..." in the SVG renderer.
+                    let display_len = v.len().min(MAX_VALUE_DISPLAY_LEN + 3); // +3 for "..."
+                    (base + 3 + display_len) as f64 * CHAR_WIDTH // " = " + value
+                }
                 None => base as f64 * CHAR_WIDTH,
             }
         })

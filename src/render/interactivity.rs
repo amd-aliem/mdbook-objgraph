@@ -141,6 +141,31 @@ pub fn js() -> &'static str {
     });
   });
 
+  // Copy-to-clipboard for truncated property values
+  svg.querySelectorAll('.obgraph-copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var val = btn.getAttribute('data-full-value');
+      if (!val) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val);
+      } else {
+        // Fallback for older browsers / non-HTTPS contexts
+        var ta = document.createElement('textarea');
+        ta.value = val;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      // Brief visual feedback
+      btn.style.opacity = '1';
+      setTimeout(function() { btn.style.opacity = ''; }, 600);
+    });
+  });
+
   svg.addEventListener('click', function() {
     selected.clear();
     selectedProps.clear();

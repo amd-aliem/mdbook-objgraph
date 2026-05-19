@@ -3,8 +3,8 @@
 use std::fmt::Write;
 
 use crate::layout::{
-    LayoutResult, CONTENT_PAD, DOMAIN_TITLE_HEIGHT, DOT_RADIUS, HEADER_HEIGHT, PILL_HEIGHT,
-    ROW_HEIGHT,
+    LayoutResult, CONTENT_PAD, DOMAIN_TITLE_HEIGHT, DOT_RADIUS, HEADER_HEIGHT,
+    MAX_VALUE_DISPLAY_LEN, PILL_HEIGHT, ROW_HEIGHT,
 };
 use crate::model::state::StateResult;
 use crate::model::types::{Edge, EdgeId, Graph, NodeId};
@@ -637,15 +637,58 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
                 let text_x = nl.x + CONTENT_PAD;
                 let text_y = port_y;
                 if let Some(val) = &prop.value {
-                    writeln!(
-                        out,
-                        r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}<tspan class="obgraph-prop-value"> = {val}</tspan></text>"#,
-                        x = text_x,
-                        y = text_y,
-                        name = escape_xml(&prop.name),
-                        val = escape_xml(val)
-                    )
-                    .unwrap();
+                    let truncated = val.len() > MAX_VALUE_DISPLAY_LEN;
+                    let display_val = if truncated {
+                        format!("{}...", &val[..MAX_VALUE_DISPLAY_LEN])
+                    } else {
+                        val.clone()
+                    };
+                    if truncated {
+                        // Truncated value: add data-full-value for copy, and a
+                        // small copy-icon button at the right edge of the row.
+                        writeln!(
+                            out,
+                            r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}<tspan class="obgraph-prop-value"> = {val}</tspan></text>"#,
+                            x = text_x,
+                            y = text_y,
+                            name = escape_xml(&prop.name),
+                            val = escape_xml(&display_val)
+                        )
+                        .unwrap();
+                        let icon_x = nl.x + nl.width - CONTENT_PAD - 4.0;
+                        let icon_y = port_y;
+                        writeln!(
+                            out,
+                            r#"          <g class="obgraph-copy-btn" data-full-value="{full}" transform="translate({ix},{iy})">"#,
+                            full = escape_xml(val),
+                            ix = icon_x,
+                            iy = icon_y,
+                        )
+                        .unwrap();
+                        // Invisible hit area (10×10)
+                        writeln!(
+                            out,
+                            r#"            <rect x="-5" y="-5" width="10" height="10" fill="transparent" class="obgraph-copy-hit"/>"#
+                        )
+                        .unwrap();
+                        // Clipboard icon path (8×8, centered)
+                        writeln!(
+                            out,
+                            r#"            <path class="obgraph-copy-icon" d="M-2.5,-3.5 h3.5 v5 h-3.5z M-1,-4.5 h3.5 v5 h-3.5z" fill="none" stroke-width="0.8"/>"#
+                        )
+                        .unwrap();
+                        writeln!(out, r#"          </g>"#).unwrap();
+                    } else {
+                        writeln!(
+                            out,
+                            r#"          <text class="obgraph-prop-name" x="{x}" y="{y}" dominant-baseline="central">{name}<tspan class="obgraph-prop-value"> = {val}</tspan></text>"#,
+                            x = text_x,
+                            y = text_y,
+                            name = escape_xml(&prop.name),
+                            val = escape_xml(&display_val)
+                        )
+                        .unwrap();
+                    }
                 } else {
                     writeln!(
                         out,

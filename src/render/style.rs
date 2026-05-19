@@ -275,6 +275,22 @@ pub fn css() -> &'static str {
   opacity: 0.7;
 }
 
+/* Copy button for truncated values */
+.obgraph-copy-btn {
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.15s ease;
+}
+.obgraph-copy-btn:hover {
+  opacity: 1;
+}
+.obgraph-copy-icon {
+  stroke: var(--obg-text-muted);
+}
+.obgraph-copy-btn:hover .obgraph-copy-icon {
+  stroke: var(--obg-text);
+}
+
 /* Property row divider */
 .obgraph-prop-divider {
   stroke: var(--obg-border);
