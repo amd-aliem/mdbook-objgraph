@@ -37,8 +37,6 @@ pub fn css() -> &'static str {
   --obg-eval-fail-text: #991b1b;
   --obg-eval-missing-bg: #fef3c7;
   --obg-eval-missing-text: #92400e;
-  --obg-eval-uncovered-bg: #e0e7ff;
-  --obg-eval-uncovered-text: #3730a3;
 
   background: var(--obg-bg);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -69,8 +67,6 @@ pub fn css() -> &'static str {
   --obg-eval-fail-text: #fecaca;
   --obg-eval-missing-bg: #92400e;
   --obg-eval-missing-text: #fde68a;
-  --obg-eval-uncovered-bg: #3730a3;
-  --obg-eval-uncovered-text: #c7d2fe;
 }
 
 /* Domain background and label */
@@ -276,18 +272,6 @@ pub fn css() -> &'static str {
 }
 .obgraph-prop[data-eval="missing"] .obgraph-prop-value {
   fill: var(--obg-eval-missing-text);
-  opacity: 0.7;
-}
-
-/* Evaluation uncovered — indigo background (in evidence but not in policy) */
-.obgraph-prop[data-eval="uncovered"] .obgraph-prop-bg {
-  fill: var(--obg-eval-uncovered-bg);
-}
-.obgraph-prop[data-eval="uncovered"] .obgraph-prop-name {
-  fill: var(--obg-eval-uncovered-text);
-}
-.obgraph-prop[data-eval="uncovered"] .obgraph-prop-value {
-  fill: var(--obg-eval-uncovered-text);
   opacity: 0.7;
 }
 
