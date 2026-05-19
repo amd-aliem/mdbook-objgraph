@@ -681,7 +681,7 @@ mod tests {
                     node: nid,
                     name: format!("prop{}", j),
                     value: None,
-                    critical: true, constrained: false, pass: false, fail: false,
+                    critical: true, constrained: false, pass: false, fail: false, missing: false, uncovered: false,
                 });
                 prop_ids.push(pid);
             }

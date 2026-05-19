@@ -10,6 +10,7 @@ pub fn css() -> &'static str {
   --obg-text-muted: #64748b;
   --obg-border: #e2e8f0;
   --obg-border-strong: #cbd5e1;
+  --obg-label-bg: white;
 
   /* Node */
   --obg-node-bg: white;
@@ -29,11 +30,47 @@ pub fn css() -> &'static str {
   --obg-domain-border: #cbd5e1;
   --obg-domain-label: #64748b;
 
-  background: #ffffff;
+  /* Eval pass/fail */
+  --obg-eval-pass-bg: #dcfce7;
+  --obg-eval-pass-text: #166534;
+  --obg-eval-fail-bg: #fee2e2;
+  --obg-eval-fail-text: #991b1b;
+  --obg-eval-missing-bg: #fef3c7;
+  --obg-eval-missing-text: #92400e;
+  --obg-eval-uncovered-bg: #e0e7ff;
+  --obg-eval-uncovered-text: #3730a3;
+
+  background: var(--obg-bg);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 10px;
   color: var(--obg-text);
   overflow: visible;
+}
+
+/* Dark theme — apply .obgraph-dark on the SVG or an ancestor */
+.obgraph-dark,
+.obgraph.obgraph-dark {
+  --obg-bg: transparent;
+  --obg-text: #e2e8f0;
+  --obg-text-muted: #94a3b8;
+  --obg-border: #334155;
+  --obg-border-strong: #475569;
+  --obg-label-bg: #1e293b;
+  --obg-node-bg: #1e293b;
+  --obg-header-bg: #0f172a;
+  --obg-header-text: #e2e8f0;
+  --obg-select-ring: #94a3b8;
+  --obg-domain-bg: #0f172a80;
+  --obg-domain-border: #475569;
+  --obg-domain-label: #94a3b8;
+  --obg-eval-pass-bg: #166534;
+  --obg-eval-pass-text: #bbf7d0;
+  --obg-eval-fail-bg: #991b1b;
+  --obg-eval-fail-text: #fecaca;
+  --obg-eval-missing-bg: #92400e;
+  --obg-eval-missing-text: #fde68a;
+  --obg-eval-uncovered-bg: #3730a3;
+  --obg-eval-uncovered-text: #c7d2fe;
 }
 
 /* Domain background and label */
@@ -49,9 +86,14 @@ pub fn css() -> &'static str {
   font-weight: 600;
   fill: var(--obg-domain-label);
   paint-order: stroke;
-  stroke: white;
+  stroke: var(--obg-label-bg);
   stroke-width: 3px;
   stroke-linejoin: round;
+}
+
+/* Edge label knockout background */
+.obgraph-label-bg {
+  fill: var(--obg-label-bg);
 }
 
 /* Anchor edges — green, 2px, solid when valid */
@@ -201,27 +243,51 @@ pub fn css() -> &'static str {
   font-weight: 700;
 }
 
-/* Evaluation pass — light green background */
+/* Evaluation pass — green background */
 .obgraph-prop[data-eval="pass"] .obgraph-prop-bg {
-  fill: #dcfce7;
+  fill: var(--obg-eval-pass-bg);
 }
 .obgraph-prop[data-eval="pass"] .obgraph-prop-name {
-  fill: #166534;
+  fill: var(--obg-eval-pass-text);
 }
 .obgraph-prop[data-eval="pass"] .obgraph-prop-value {
-  fill: #166534;
+  fill: var(--obg-eval-pass-text);
   opacity: 0.7;
 }
 
-/* Evaluation fail — light red background */
+/* Evaluation fail — red background */
 .obgraph-prop[data-eval="fail"] .obgraph-prop-bg {
-  fill: #fee2e2;
+  fill: var(--obg-eval-fail-bg);
 }
 .obgraph-prop[data-eval="fail"] .obgraph-prop-name {
-  fill: #991b1b;
+  fill: var(--obg-eval-fail-text);
 }
 .obgraph-prop[data-eval="fail"] .obgraph-prop-value {
-  fill: #991b1b;
+  fill: var(--obg-eval-fail-text);
+  opacity: 0.7;
+}
+
+/* Evaluation missing — amber background (in policy but not in evidence) */
+.obgraph-prop[data-eval="missing"] .obgraph-prop-bg {
+  fill: var(--obg-eval-missing-bg);
+}
+.obgraph-prop[data-eval="missing"] .obgraph-prop-name {
+  fill: var(--obg-eval-missing-text);
+}
+.obgraph-prop[data-eval="missing"] .obgraph-prop-value {
+  fill: var(--obg-eval-missing-text);
+  opacity: 0.7;
+}
+
+/* Evaluation uncovered — indigo background (in evidence but not in policy) */
+.obgraph-prop[data-eval="uncovered"] .obgraph-prop-bg {
+  fill: var(--obg-eval-uncovered-bg);
+}
+.obgraph-prop[data-eval="uncovered"] .obgraph-prop-name {
+  fill: var(--obg-eval-uncovered-text);
+}
+.obgraph-prop[data-eval="uncovered"] .obgraph-prop-value {
+  fill: var(--obg-eval-uncovered-text);
   opacity: 0.7;
 }
 

@@ -3044,14 +3044,14 @@ mod tests {
                 node: NodeId(0),
                 name: "prop_a".into(),
                 value: None,
-                critical: true, constrained: false, pass: false, fail: false,
+                critical: true, constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
             Property {
                 id: PropId(1),
                 node: NodeId(1),
                 name: "prop_b".into(),
                 value: None,
-                critical: true, constrained: false, pass: false, fail: false,
+                critical: true, constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
         ];
 
@@ -3365,14 +3365,14 @@ mod tests {
                 node: NodeId(0),
                 name: "p1".into(),
                 value: None,
-                critical: true, constrained: false, pass: false, fail: false,
+                critical: true, constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
             Property {
                 id: PropId(1),
                 node: NodeId(0),
                 name: "p2".into(),
                 value: None,
-                critical: true, constrained: false, pass: false, fail: false,
+                critical: true, constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
         ];
 
@@ -3795,7 +3795,7 @@ mod tests {
                 name: "p0".into(),
                 value: None,
                 critical: true,
-                constrained: false, pass: false, fail: false,
+                constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
             Property {
                 id: PropId(1),
@@ -3803,7 +3803,7 @@ mod tests {
                 name: "p1".into(),
                 value: None,
                 critical: true,
-                constrained: false, pass: false, fail: false,
+                constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             },
         ];
 

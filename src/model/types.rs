@@ -180,6 +180,10 @@ pub struct Property {
     pub pass: bool,
     /// `@fail` — evaluation failed for this property.
     pub fail: bool,
+    /// `@missing` — field required by policy but absent from evidence.
+    pub missing: bool,
+    /// `@uncovered` — field present in evidence but not covered by policy.
+    pub uncovered: bool,
 }
 
 // ---------------------------------------------------------------------------

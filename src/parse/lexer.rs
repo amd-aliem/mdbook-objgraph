@@ -23,6 +23,10 @@ pub enum Token {
     AtPass,
     /// `@fail` — evaluation failed
     AtFail,
+    /// `@missing` — field required by policy but absent from evidence
+    AtMissing,
+    /// `@uncovered` — field present in evidence but not covered by policy
+    AtUncovered,
     /// `<-` link arrow
     LeftArrow,
     /// `</-` broken link arrow (failed verification)
@@ -166,6 +170,8 @@ impl<'a> Lexer<'a> {
             "constrained" => Ok(Token::AtConstrained),
             "pass" => Ok(Token::AtPass),
             "fail" => Ok(Token::AtFail),
+            "missing" => Ok(Token::AtMissing),
+            "uncovered" => Ok(Token::AtUncovered),
             other => Err(crate::ObgraphError::Parse {
                 line,
                 col,

@@ -271,7 +271,7 @@ fn write_edge_label(
         // padding (1px) with rounded corners keeps the background subtle.
         writeln!(
             out,
-            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="2" fill="white"/>"##,
+            r##"        <rect class="obgraph-label-bg" x="{x}" y="{y}" width="{w}" height="{h}" rx="2"/>"##,
             x = bx, y = by - 1.0, w = bw, h = bh + 2.0
         ).unwrap();
         writeln!(
@@ -602,6 +602,10 @@ fn write_nodes(out: &mut String, graph: &Graph, layout: &LayoutResult, state: &S
                     Some("pass")
                 } else if prop.fail {
                     Some("fail")
+                } else if prop.missing {
+                    Some("missing")
+                } else if prop.uncovered {
+                    Some("uncovered")
                 } else {
                     None
                 };
@@ -946,6 +950,8 @@ mod tests {
             constrained: false,
             pass: false,
             fail: false,
+            missing: false,
+            uncovered: false,
         }];
         let edges = vec![Edge::Anchor {
             parent: NodeId(0),
@@ -1038,6 +1044,8 @@ mod tests {
                 constrained: true,
                 pass: false,
                 fail: false,
+                missing: false,
+                uncovered: false,
             },
             Property {
                 id: PropId(1),
@@ -1048,6 +1056,8 @@ mod tests {
                 constrained: false,
                 pass: false,
                 fail: false,
+                missing: false,
+                uncovered: false,
             },
         ];
         let edges = vec![Edge::Constraint {
@@ -1192,6 +1202,8 @@ mod tests {
             constrained: true,
             pass: false,
             fail: false,
+            missing: false,
+            uncovered: false,
         }];
         let graph = make_graph(nodes, properties, vec![], vec![]);
         let trust_state = state::propagate(&graph);
@@ -1507,6 +1519,8 @@ mod tests {
                 constrained: true,
                 pass: false,
                 fail: false,
+                missing: false,
+                uncovered: false,
             },
             Property {
                 id: PropId(1),
@@ -1517,6 +1531,8 @@ mod tests {
                 constrained: false,
                 pass: false,
                 fail: false,
+                missing: false,
+                uncovered: false,
             },
         ];
         let edges = vec![Edge::Constraint {

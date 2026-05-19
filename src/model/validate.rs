@@ -377,7 +377,7 @@ mod tests {
             name: "sig".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.nodes[0].properties.push(PropId(0));
 
@@ -387,7 +387,7 @@ mod tests {
             name: "sig".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.nodes[1].properties.push(PropId(1));
 
@@ -453,7 +453,7 @@ mod tests {
                 name: "sig".to_string(),
                 value: None,
                 critical: true,
-                constrained: false, pass: false, fail: false,
+                constrained: false, pass: false, fail: false, missing: false, uncovered: false,
             });
             g.nodes[0].properties.push(PropId(i));
         }
@@ -520,7 +520,7 @@ mod tests {
             name: "p".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.nodes[0].properties.push(PropId(0));
 
@@ -552,7 +552,7 @@ mod tests {
             name: "source".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.properties.push(Property {
             id: PropId(1),
@@ -560,7 +560,7 @@ mod tests {
             name: "constrained_prop".to_string(),
             value: None,
             critical: false,
-            constrained: true, pass: false, fail: false, // @constrained
+            constrained: true, pass: false, fail: false, missing: false, uncovered: false, // @constrained
         });
         g.nodes[0].properties = vec![PropId(0), PropId(1)];
 
@@ -588,7 +588,7 @@ mod tests {
             name: "source".to_string(),
             value: None,
             critical: false,
-            constrained: true, pass: false, fail: false, // source is constrained — ok, only dest matters
+            constrained: true, pass: false, fail: false, missing: false, uncovered: false, // source is constrained — ok, only dest matters
         });
         g.properties.push(Property {
             id: PropId(1),
@@ -596,7 +596,7 @@ mod tests {
             name: "dest".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.nodes[0].properties = vec![PropId(0), PropId(1)];
 
@@ -715,7 +715,7 @@ mod tests {
             name: "a".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.properties.push(Property {
             id: PropId(1),
@@ -723,7 +723,7 @@ mod tests {
             name: "b".to_string(),
             value: None,
             critical: true,
-            constrained: false, pass: false, fail: false,
+            constrained: false, pass: false, fail: false, missing: false, uncovered: false,
         });
         g.nodes[0].properties = vec![PropId(0), PropId(1)];
 
